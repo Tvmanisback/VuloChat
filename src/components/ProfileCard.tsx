@@ -5,7 +5,6 @@ import { useProfileBadges } from '../lib/badges';
 import type { Profile, UserStatus } from '../lib/types';
 import BadgeIcon from './BadgeIcon';
 import Markdown from './Markdown';
-import NameplateBackdrop from './Nameplate';
 import ProfileDecorationOverlay from './ProfileDecoration';
 import ReportDialog from './ReportDialog';
 import { Avatar } from './ui';
@@ -47,16 +46,15 @@ export default function ProfileCard({ profile, onClose }: { profile: Profile; on
         {/* Banner: the uploaded image, or a plain gradient when none is set. GIF banners play as they load. */}
         <div className="relative h-28 w-full overflow-hidden" style={{ background: bannerBackground(profile.accent_color) }}>
           {profile.banner_url && <img src={profile.banner_url} alt="" className="h-full w-full object-cover" />}
-          <ProfileDecorationOverlay decorationId={profile.profile_decoration_id} />
         </div>
 
-        <div className="px-4 pb-4">
+        <div className="relative isolate px-4 pb-4">
+          <ProfileDecorationOverlay decorationId={profile.profile_decoration_id} />
           <div className="relative z-10 -mt-10 mb-2 w-fit rounded-full bg-vulo-rail p-1.5">
             <Avatar profile={profile} size="lg" status={profile.status} ringClass="border-vulo-rail" />
           </div>
 
-          <div className="relative overflow-hidden rounded-lg bg-vulo-chat p-3">
-            <NameplateBackdrop nameplateId={profile.nameplate_id} />
+          <div className="relative z-10 overflow-hidden rounded-lg bg-vulo-chat p-3">
             <div className="relative">
               <p className="truncate text-lg font-bold text-vulo-bright">{name}</p>
               <p className="truncate text-sm text-vulo-muted">@{profile.username}</p>
