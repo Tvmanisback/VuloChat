@@ -7,6 +7,7 @@ import { bannerBackground } from '../lib/banner';
 import { updateSettings, useSettings, type Keybinds } from '../lib/settings';
 import { Avatar, Button, ErrorText, Field, inputClass } from './ui';
 import BadgeIcon from './BadgeIcon';
+import { CUSTOM_DEFAULT, PRESETS, type PresetName, type ThemeColors, type ThemeName } from '../lib/themes';
 
 type Tab = 'account' | 'profile' | 'decorations' | 'appearance' | 'voice' | 'keybinds';
 
@@ -458,10 +459,96 @@ function DecorationOption({
   );
 }
 
+const CUSTOM_FIELDS: [keyof ThemeColors, string][] = [
+  ['rail', 'Outer background'],
+  ['side', 'Sidebar'],
+  ['chat', 'Chat'],
+  ['accent', 'Accent'],
+  ['text', 'Text'],
+];
+
+function ThemeCard({
+  label,
+  colors,
+  selected,
+  onSelect,
+}: {
+  label: string;
+  colors: ThemeColors;
+  selected: boolean;
+  onSelect: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      aria-pressed={selected}
+      className={`flex flex-col gap-2 rounded p-3 text-left transition ${
+        selected ? 'bg-vulo-active ring-2 ring-vulo-accent' : 'bg-vulo-side hover:bg-vulo-hover'
+      }`}
+    >
+      <span className="flex h-12 overflow-hidden rounded" aria-hidden="true">
+        <span className="flex-1" style={{ background: colors.rail }} />
+        <span className="flex-1" style={{ background: colors.side }} />
+        <span className="flex-[2]" style={{ background: colors.chat }} />
+        <span className="flex-1" style={{ background: colors.accent }} />
+      </span>
+      <span className="text-sm font-medium text-vulo-bright">{label}</span>
+    </button>
+  );
+}
+
 function AppearanceTab() {
   const s = useSettings();
+  const presetIds = Object.keys(PRESETS) as PresetName[];
   return (
     <Section title="Appearance">
+      <p className="mb-3 text-xs font-bold uppercase tracking-wide text-vulo-muted">Theme</p>
+      <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
+        {presetIds.map((id) => (
+          <ThemeCard
+            key={id}
+            label={PRESETS[id].label}
+            colors={PRESETS[id].colors}
+            selected={s.theme === id}
+            onSelect={() => updateSettings({ theme: id as ThemeName })}
+          />
+        ))}
+        <ThemeCard
+          label="Custom"
+          colors={s.customTheme}
+          selected={s.theme === 'custom'}
+          onSelect={() => updateSettings({ theme: 'custom' })}
+        />
+      </div>
+
+      {s.theme === 'custom' && (
+        <div className="mb-6 rounded bg-vulo-side p-5">
+          <p className="mb-3 text-sm text-vulo-muted">
+            Pick five colors. The hover, line and muted shades are worked out from them.
+          </p>
+          <div className="grid grid-cols-2 gap-3">
+            {CUSTOM_FIELDS.map(([key, label]) => (
+              <label key={key} className="flex items-center justify-between gap-3 rounded bg-vulo-rail px-3 py-2 text-sm text-vulo-text">
+                {label}
+                <input
+                  type="color"
+                  value={s.customTheme[key]}
+                  onChange={(e) => updateSettings({ customTheme: { ...s.customTheme, [key]: e.target.value } })}
+                  className="h-8 w-12 cursor-pointer rounded bg-transparent"
+                  aria-label={`${label} color`}
+                />
+              </label>
+            ))}
+          </div>
+          <div className="mt-3">
+            <Button variant="secondary" onClick={() => updateSettings({ customTheme: CUSTOM_DEFAULT })}>
+              Reset custom colors
+            </Button>
+          </div>
+        </div>
+      )}
+
       <Toggle label="Compact message spacing" hint="Less space between messages." checked={s.compact} onChange={(v) => updateSettings({ compact: v })} />
       <Toggle label="Show timestamps on hover" hint="Shows the time beside messages in a group." checked={s.showTimestamps} onChange={(v) => updateSettings({ showTimestamps: v })} />
     </Section>

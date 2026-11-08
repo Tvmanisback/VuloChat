@@ -314,6 +314,11 @@ begin
   if exists (select 1 from public.server_members where server_id = inv.server_id and user_id = uid) then
     return inv.server_id;
   end if;
+  -- Anti-raid: when many people join the same server within a minute, new joins pause.
+  if (select count(*) from public.server_members
+      where server_id = inv.server_id and joined_at > now() - interval '1 minute') >= 10 then
+    raise exception 'many people are joining this server right now. Try again in a minute';
+  end if;
   insert into public.server_members (server_id, user_id) values (inv.server_id, uid);
   update public.invites set uses = uses + 1 where code = p_code;
   return inv.server_id;
@@ -611,7 +616,7 @@ alter publication supabase_realtime add table public.server_emojis;
 -- Emoji images: public like avatars, 512 KB each. Files live under <server_id>/ so the
 -- policies can check the server. Uploads and deletes need MANAGE_SERVER.
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
-values ('emojis', 'emojis', true, 524288, array['image/png', 'image/jpeg', 'image/gif', 'image/webp'])
+values ('emojis', 'emojis', true, 10485760, array['image/png', 'image/jpeg', 'image/gif', 'image/webp'])
 on conflict (id) do nothing;
 
 create policy emojis_read on storage.objects for select to anon, authenticated
@@ -692,3 +697,57 @@ create policy gif_favorites_insert on public.gif_favorites for insert to authent
   with check (user_id = auth.uid());
 create policy gif_favorites_delete on public.gif_favorites for delete to authenticated
   using (user_id = auth.uid());
+
+-- ===== Anti-raid, word filter, and forwarding (added after v1.0.0) =====
+
+-- Anti-raid: a person can send at most 8 messages in any 10 seconds.
+create or replace function public.messages_rate_limit()
+returns trigger language plpgsql set search_path = public as $$
+begin
+  if (select count(*) from public.messages
+      where author_id = new.author_id and created_at > now() - interval '10 seconds') >= 8 then
+    raise exception 'you are sending messages too fast. Wait a few seconds and try again';
+  end if;
+  return new;
+end;
+$$;
+
+create trigger messages_rate_limit
+  before insert on public.messages
+  for each row execute function public.messages_rate_limit();
+
+-- Blocked words for messages and DMs. Terms are lowercase words or phrases and match whole
+-- words only. The project owner manages this list. App users cannot read it.
+create table public.blocked_terms (
+  term text primary key check (term ~ '^[a-z0-9]+( [a-z0-9]+)*$' and char_length(term) between 2 and 64),
+  created_at timestamptz not null default now()
+);
+alter table public.blocked_terms enable row level security;
+-- No policies: app users cannot read or change the list. Only the trigger below reads it.
+revoke all on public.blocked_terms from anon, authenticated;
+
+create or replace function public.check_blocked_terms()
+returns trigger language plpgsql security definer set search_path = public as $$
+declare
+  words text := ' ' || trim(regexp_replace(lower(coalesce(new.content, '')), '[^a-z0-9]+', ' ', 'g')) || ' ';
+begin
+  if exists (select 1 from public.blocked_terms t where position(' ' || t.term || ' ' in words) > 0) then
+    raise exception 'that message contains a blocked word';
+  end if;
+  return new;
+end;
+$$;
+
+revoke execute on function public.check_blocked_terms() from public, anon, authenticated;
+
+create trigger messages_blocked_terms
+  before insert or update of content on public.messages
+  for each row execute function public.check_blocked_terms();
+
+create trigger direct_messages_blocked_terms
+  before insert or update of content on public.direct_messages
+  for each row execute function public.check_blocked_terms();
+
+-- A forwarded message is a copy. This points back to the original so the app can label it.
+alter table public.messages
+  add column forward_of uuid references public.messages(id) on delete set null;

@@ -97,6 +97,7 @@ export interface Message {
   attachments: Attachment[];
   embeds: Embed[];
   reply_to: string | null;
+  forward_of: string | null;
   created_at: string;
   edited_at: string | null;
 }

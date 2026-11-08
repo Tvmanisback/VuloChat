@@ -6,6 +6,7 @@ import { getSettings, useSettings } from '../lib/settings';
 import { playCue } from '../lib/sounds';
 import type { Attachment, Channel, Embed, MemberRow, Message, Profile } from '../lib/types';
 import Composer from './Composer';
+import ForwardDialog from './ForwardDialog';
 import Markdown from './Markdown';
 import { Icon } from './icons';
 import { Avatar } from './ui';
@@ -37,6 +38,8 @@ export default function ChatView({ channel, userId, perms, members, myDisplayNam
   const [hasMore, setHasMore] = useState(false);
   const [menu, setMenu] = useState<{ x: number; y: number; msg: Message } | null>(null);
   const [editing, setEditing] = useState<{ id: string; text: string } | null>(null);
+  const [replyTo, setReplyTo] = useState<Message | null>(null);
+  const [forwarding, setForwarding] = useState<Message | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const stickToBottom = useRef(true);
 
@@ -44,11 +47,23 @@ export default function ChatView({ channel, userId, perms, members, myDisplayNam
   const canSend = hasPerm(perms, PERM.SEND_MESSAGES);
   const canModerate = hasPerm(perms, PERM.MANAGE_MESSAGES);
 
+  const nameOf = (id: string) => {
+    const p = profiles.get(id);
+    return p?.display_name || p?.username || 'Unknown user';
+  };
+
+  // A short plain-text preview of a message, for reply quotes.
+  const snippetOf = (m: Message) => {
+    if (m.content.trim()) return m.content.replace(/\s+/g, ' ').slice(0, 120);
+    return m.attachments.length ? 'an attachment' : 'a message';
+  };
+
   // Initial load and realtime subscription for this channel.
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
     setMessages([]);
+    setReplyTo(null);
     supabase
       .from('messages')
       .select('*')
@@ -122,8 +137,10 @@ export default function ChatView({ channel, userId, perms, members, myDisplayNam
       content,
       attachments,
       embeds,
+      reply_to: replyTo?.id ?? null,
     });
     if (error) throw error;
+    setReplyTo(null);
     stickToBottom.current = true;
   };
 
@@ -131,7 +148,15 @@ export default function ChatView({ channel, userId, perms, members, myDisplayNam
     if (!editing) return;
     const text = editing.text.trim();
     if (!text) return;
-    await supabase.from('messages').update({ content: text, edited_at: new Date().toISOString() }).eq('id', editing.id);
+    const { error } = await supabase
+      .from('messages')
+      .update({ content: text, edited_at: new Date().toISOString() })
+      .eq('id', editing.id);
+    if (error) {
+      // Usually a blocked word or a rate limit. Keep the editor open so the text can be fixed.
+      window.alert(error.message);
+      return;
+    }
     setEditing(null);
   };
 
@@ -155,7 +180,7 @@ export default function ChatView({ channel, userId, perms, members, myDisplayNam
 
   const openMenu = (e: ReactMouseEvent, msg: Message) => {
     e.preventDefault();
-    setMenu({ x: Math.min(e.clientX, window.innerWidth - 200), y: Math.min(e.clientY, window.innerHeight - 160), msg });
+    setMenu({ x: Math.min(e.clientX, window.innerWidth - 200), y: Math.min(e.clientY, window.innerHeight - 220), msg });
   };
 
   // Group consecutive messages from the same author so the feed reads like Discord.
@@ -208,6 +233,7 @@ export default function ChatView({ channel, userId, perms, members, myDisplayNam
           const name = author?.display_name || author?.username || 'Unknown user';
           const isEditing = editing?.id === m.id;
           const canDelete = m.author_id === userId || canModerate;
+          const parent = m.reply_to ? messages.find((x) => x.id === m.reply_to) : undefined;
           return (
             <article
               key={m.id}
@@ -235,6 +261,19 @@ export default function ChatView({ channel, userId, perms, members, myDisplayNam
               </div>
 
               <div className="min-w-0 flex-1">
+                {m.reply_to && (
+                  <p className="mb-0.5 flex min-w-0 items-center gap-1.5 text-xs text-vulo-muted">
+                    <Icon name="reply" className="h-3.5 w-3.5 shrink-0" />
+                    {parent ? (
+                      <span className="truncate">
+                        Replying to <span className="font-medium text-vulo-text">{nameOf(parent.author_id)}</span>: {snippetOf(parent)}
+                      </span>
+                    ) : (
+                      <span className="truncate">Replying to a message that is not loaded</span>
+                    )}
+                  </p>
+                )}
+
                 {!continuation && (
                   <header className="flex items-baseline gap-2">
                     <button
@@ -247,6 +286,13 @@ export default function ChatView({ channel, userId, perms, members, myDisplayNam
                     </button>
                     <time className="text-xs text-vulo-muted" dateTime={m.created_at}>{formatTime(m.created_at)}</time>
                   </header>
+                )}
+
+                {m.forward_of && (
+                  <p className="mb-0.5 flex items-center gap-1.5 text-xs text-vulo-muted">
+                    <Icon name="forward" className="h-3.5 w-3.5 shrink-0" />
+                    Forwarded
+                  </p>
                 )}
 
                 {isEditing ? (
@@ -284,6 +330,24 @@ export default function ChatView({ channel, userId, perms, members, myDisplayNam
 
               {!isEditing && (
                 <div className="absolute -top-3 right-4 hidden items-center gap-0.5 rounded bg-vulo-chat p-0.5 shadow group-hover:flex">
+                  {canSend && (
+                    <button
+                      onClick={() => setReplyTo(m)}
+                      className="rounded p-1 text-vulo-muted hover:text-vulo-text"
+                      aria-label="Reply"
+                      title="Reply"
+                    >
+                      <Icon name="reply" className="h-4 w-4" />
+                    </button>
+                  )}
+                  <button
+                    onClick={() => setForwarding(m)}
+                    className="rounded p-1 text-vulo-muted hover:text-vulo-text"
+                    aria-label="Forward message"
+                    title="Forward"
+                  >
+                    <Icon name="forward" className="h-4 w-4" />
+                  </button>
                   {m.author_id === userId && (
                     <button
                       onClick={() => setEditing({ id: m.id, text: m.content })}
@@ -311,6 +375,8 @@ export default function ChatView({ channel, userId, perms, members, myDisplayNam
         disabled={!canSend}
         disabledReason="You do not have permission to send messages in this channel."
         onSend={send}
+        replyingTo={replyTo ? { name: nameOf(replyTo.author_id), preview: snippetOf(replyTo) } : null}
+        onCancelReply={() => setReplyTo(null)}
       />
 
       {menu && (
@@ -329,6 +395,28 @@ export default function ChatView({ channel, userId, perms, members, myDisplayNam
             }}
           >
             Copy text
+          </button>
+          {canSend && (
+            <button
+              role="menuitem"
+              className="block w-full rounded px-2 py-1.5 text-left text-vulo-text hover:bg-vulo-accent hover:text-white"
+              onClick={() => {
+                setReplyTo(menu.msg);
+                setMenu(null);
+              }}
+            >
+              Reply
+            </button>
+          )}
+          <button
+            role="menuitem"
+            className="block w-full rounded px-2 py-1.5 text-left text-vulo-text hover:bg-vulo-accent hover:text-white"
+            onClick={() => {
+              setForwarding(menu.msg);
+              setMenu(null);
+            }}
+          >
+            Forward
           </button>
           {menu.msg.author_id === userId && (
             <button
@@ -356,6 +444,8 @@ export default function ChatView({ channel, userId, perms, members, myDisplayNam
           )}
         </div>
       )}
+
+      {forwarding && <ForwardDialog message={forwarding} userId={userId} onClose={() => setForwarding(null)} />}
 
       {/* Accessibility: name of the current user for screen readers */}
       <span className="sr-only">Signed in as {myDisplayName}</span>

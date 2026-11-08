@@ -18,7 +18,9 @@ Free chat for servers, channels, voice, and direct messages. Use it in your brow
 - **Customize your profile.** In Settings → Profile, upload a banner (GIF banners play), pick a profile color for when there's no banner, set a custom status, and see your badges. Your About me text supports Markdown.
 - **Open profile cards.** Click a member in the member list or a name in chat to see their banner, avatar, status, badges, and About me.
 - **Use custom emoji.** Server owners and admins can add up to 50 emojis to a server in Server Settings → Emojis. Type `:name:` in any message on that server, or pick one from the emoji menu.
-- **Send GIFs.** Click **GIF** in the message box and search. GIFs come from KLIPY, and the key stays on the server. Setup is in [step 5](#5-set-up-gifs-klipy).
+- **Send GIFs.** Click **GIF** in the message box and search. GIFs come from KLIPY, and the key stays on the server. Setup is in [step 5](#5-set-up-gifs-klipy). Trending, search, and favorites are all in the GIF panel.
+- **Reply and forward.** Hover a message and click reply to answer it. Replies show a quote of the original. Forward copies a message to any text channel you can post in, and the copy is marked as forwarded.
+- **Custom themes.** Pick Violet, Midnight, Forest, or Light, or build your own in Settings → Appearance. Themes are saved on the device you choose them on.
 - **Use the Windows app** for a window with its own controls, a tray icon that keeps VuloChat running, global hotkeys, and desktop notifications.
 - **Use the Android app.** Swipe out the menu for servers and channels. The back button closes open panels before it leaves the app.
 
@@ -119,3 +121,7 @@ VuloChat/
 - **Badges:** members can't pick these yet. The project owner grants them in the database.
 - **Decorations:** the 25 built-in frames are available now. Uploading your own decoration is coming soon.
 - **GIFs:** the GIF button works only after a KLIPY key is set (see step 5).
+- **Anti-raid:** each person can send 8 messages in 10 seconds, and joins pause when 10 people join the same server within a minute.
+- **Word filter:** messages and DMs are checked against a list of blocked words that the project owner manages. Only whole words are matched, so misspellings and symbol swaps are not caught. Images are not scanned yet.
+- **Replies and forwards** work in server channels only, not yet in direct messages.
+- **Themes:** the theme is saved on each device. A few small colors, such as the message hover, stay fixed.

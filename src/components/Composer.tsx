@@ -11,6 +11,15 @@ const EMOJIS = [
   '🎮', '🎧', '🚀', '🍕', '☕', '🌙', '⚡', '✅', '❌', '⚠️', '💡', '🙌',
 ];
 
+// Supabase errors are plain objects, not Error instances, so their message is read directly.
+function errorMessage(e: unknown, fallback: string): string {
+  if (e instanceof Error) return e.message;
+  if (e && typeof e === 'object' && 'message' in e && typeof (e as { message: unknown }).message === 'string') {
+    return (e as { message: string }).message;
+  }
+  return fallback;
+}
+
 type PickerTab = 'emoji' | 'gif';
 
 interface Props {
@@ -20,9 +29,20 @@ interface Props {
   disabledReason?: string;
   onSend: (content: string, attachments: Attachment[], embeds: Embed[]) => Promise<void>;
   maxLength?: number;
+  replyingTo?: { name: string; preview: string } | null;
+  onCancelReply?: () => void;
 }
 
-export default function Composer({ userId, placeholder, disabled, disabledReason, onSend, maxLength = 4000 }: Props) {
+export default function Composer({
+  userId,
+  placeholder,
+  disabled,
+  disabledReason,
+  onSend,
+  maxLength = 4000,
+  replyingTo,
+  onCancelReply,
+}: Props) {
   const [text, setText] = useState('');
   const [files, setFiles] = useState<File[]>([]);
   const [busy, setBusy] = useState(false);
@@ -64,7 +84,7 @@ export default function Composer({ userId, placeholder, disabled, disabledReason
       setFiles([]);
       taRef.current?.focus();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Message failed to send.');
+      setError(errorMessage(e, 'Message failed to send.'));
     } finally {
       setBusy(false);
     }
@@ -82,7 +102,7 @@ export default function Composer({ userId, placeholder, disabled, disabledReason
     try {
       await onSend(`![GIF](${safe})`, [], []);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'The GIF failed to send.');
+      setError(errorMessage(e, 'The GIF failed to send.'));
     } finally {
       setBusy(false);
     }
@@ -124,6 +144,22 @@ export default function Composer({ userId, placeholder, disabled, disabledReason
   return (
     <div className="relative px-4 pb-6 pt-1">
       {error && <p className="mb-2 rounded bg-vulo-red/10 px-3 py-1.5 text-sm text-vulo-red">{error}</p>}
+
+      {replyingTo && (
+        <div className="mb-1 flex items-center justify-between gap-2 rounded-t-lg bg-vulo-side px-3 py-2 text-sm text-vulo-muted">
+          <span className="min-w-0 truncate">
+            Replying to <span className="font-medium text-vulo-text">{replyingTo.name}</span> · {replyingTo.preview}
+          </span>
+          <button
+            type="button"
+            onClick={onCancelReply}
+            className="shrink-0 hover:text-vulo-text"
+            aria-label="Cancel reply"
+          >
+            <Icon name="x" className="h-4 w-4" />
+          </button>
+        </div>
+      )}
 
       {files.length > 0 && (
         <ul className="mb-2 flex flex-wrap gap-2">

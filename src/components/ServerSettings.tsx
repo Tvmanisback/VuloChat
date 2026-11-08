@@ -334,7 +334,7 @@ function MembersTab({ data, userId }: { data: ServerData; userId: string }) {
 
 // Keep in step with the database: the server_emoji_limit trigger and the emojis bucket limit.
 const EMOJI_MAX = 50;
-const EMOJI_MAX_BYTES = 512 * 1024;
+const EMOJI_MAX_BYTES = 10 * 1024 * 1024;
 const EMOJI_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'];
 
 function errorText(e: unknown, fallback: string): string {
@@ -378,7 +378,7 @@ function EmojisTab({ serverId, userId }: { serverId: string; userId: string }) {
       return;
     }
     if (file.size > EMOJI_MAX_BYTES) {
-      setError('Emojis must be 512 KB or smaller.');
+      setError('Emojis must be 10 MB or smaller.');
       return;
     }
 
@@ -466,7 +466,7 @@ function EmojisTab({ serverId, userId }: { serverId: string; userId: string }) {
             }}
           />
         </label>
-        <p className="mt-2 text-xs text-vulo-muted">PNG, JPEG, GIF or WebP, up to 512 KB. Animated GIFs play in messages.</p>
+        <p className="mt-2 text-xs text-vulo-muted">PNG, JPEG, GIF or WebP, up to 10 MB. Animated GIFs play in messages.</p>
       </div>
 
       <p className="mb-3 text-xs font-bold uppercase tracking-wide text-vulo-muted">Emojis — {mine.length}</p>

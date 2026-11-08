@@ -1,28 +1,33 @@
 /** @type {import('tailwindcss').Config} */
+
+// Colors read CSS variables, so a theme can change them at runtime (see src/lib/themes.ts).
+// The variables hold "R G B" values, which lets Tailwind's opacity modifiers keep working.
+const token = (name) => `rgb(var(--vulo-${name}) / <alpha-value>)`;
+
 export default {
   content: ['./index.html', './src/**/*.{ts,tsx}'],
   theme: {
     extend: {
       colors: {
-        // Own VuloChat palette: Discord-style dark layers, violet accent.
+        // Own VuloChat palette: Discord-style dark layers, violet accent by default.
         vulo: {
-          rail: '#1e1f22',
-          side: '#2b2d31',
-          chat: '#313338',
-          input: '#383a40',
-          hover: '#35373c',
-          active: '#404249',
-          line: '#3f4147',
-          muted: '#949ba4',
-          text: '#dbdee1',
-          bright: '#f2f3f5',
-          accent: '#7c5cff',
-          accentHover: '#6a48f0',
-          green: '#23a55a',
-          yellow: '#f0b232',
-          red: '#f23f43',
-          idle: '#f0b232',
-          dnd: '#f23f43',
+          rail: token('rail'),
+          side: token('side'),
+          chat: token('chat'),
+          input: token('input'),
+          hover: token('hover'),
+          active: token('active'),
+          line: token('line'),
+          muted: token('muted'),
+          text: token('text'),
+          bright: token('bright'),
+          accent: token('accent'),
+          accentHover: token('accentHover'),
+          green: token('green'),
+          yellow: token('yellow'),
+          red: token('red'),
+          idle: token('idle'),
+          dnd: token('dnd'),
         },
       },
       fontFamily: {

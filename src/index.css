@@ -2,6 +2,27 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Theme colors as R G B values. settings.ts overwrites these when a theme is chosen. */
+:root {
+  --vulo-rail: 30 31 34;
+  --vulo-side: 43 45 49;
+  --vulo-chat: 49 51 56;
+  --vulo-input: 56 58 64;
+  --vulo-hover: 53 55 60;
+  --vulo-active: 64 66 73;
+  --vulo-line: 63 65 71;
+  --vulo-muted: 148 155 164;
+  --vulo-text: 219 222 225;
+  --vulo-bright: 242 243 245;
+  --vulo-accent: 124 92 255;
+  --vulo-accentHover: 106 72 240;
+  --vulo-green: 35 165 90;
+  --vulo-yellow: 240 178 50;
+  --vulo-red: 242 63 67;
+  --vulo-idle: 240 178 50;
+  --vulo-dnd: 242 63 67;
+}
+
 html,
 body,
 #root {
@@ -11,6 +32,8 @@ body,
 body {
   -webkit-tap-highlight-color: transparent;
   overscroll-behavior: none;
+  background-color: rgb(var(--vulo-rail));
+  color: rgb(var(--vulo-text));
 }
 
 /* Thin, Discord-style scrollbars */
@@ -36,13 +59,13 @@ body {
 .markdown code {
   font-family: theme('fontFamily.mono');
   font-size: 0.875em;
-  background: #2b2d31;
+  background: rgb(var(--vulo-side));
   padding: 0.1em 0.3em;
   border-radius: 3px;
 }
 .markdown pre {
-  background: #2b2d31;
-  border: 1px solid #1e1f22;
+  background: rgb(var(--vulo-side));
+  border: 1px solid rgb(var(--vulo-rail));
   border-radius: 4px;
   padding: 0.6em 0.8em;
   overflow-x: auto;
@@ -53,9 +76,9 @@ body {
   padding: 0;
 }
 .markdown blockquote {
-  border-left: 4px solid #4e5058;
+  border-left: 4px solid rgb(var(--vulo-line));
   padding-left: 0.75em;
-  color: #b5bac1;
+  color: rgb(var(--vulo-muted));
 }
 .markdown ul,
 .markdown ol {
@@ -69,7 +92,7 @@ body {
   list-style: decimal;
 }
 .markdown strong {
-  color: #f2f3f5;
+  color: rgb(var(--vulo-bright));
   font-weight: 600;
 }
 .markdown table {
@@ -78,11 +101,11 @@ body {
 }
 .markdown th,
 .markdown td {
-  border: 1px solid #3f4147;
+  border: 1px solid rgb(var(--vulo-line));
   padding: 0.2em 0.5em;
 }
 .markdown del {
-  color: #949ba4;
+  color: rgb(var(--vulo-muted));
 }
 /* Custom emoji sit on the text line. Animated ones play on their own. */
 .markdown img.emoji {
