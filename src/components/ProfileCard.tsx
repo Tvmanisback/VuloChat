@@ -54,8 +54,8 @@ export default function ProfileCard({ profile, onClose }: { profile: Profile; on
             <Avatar profile={profile} size="lg" status={profile.status} ringClass="border-vulo-rail" />
           </div>
 
-          <div className="relative z-10 overflow-hidden rounded-lg bg-vulo-chat/90 p-3">
-            <div className="relative">
+          <div className="relative z-10 overflow-hidden rounded-lg bg-transparent p-3">
+            <div className="relative z-10">
               <p className="truncate text-lg font-bold text-vulo-bright">{name}</p>
               <p className="truncate text-sm text-vulo-muted">@{profile.username}</p>
               <p className="mt-1 text-xs text-vulo-muted">{STATUS_LABEL[profile.status]}</p>
