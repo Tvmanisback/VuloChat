@@ -1,13 +1,15 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { useAuth } from '../lib/auth';
 import { supabase } from '../lib/supabase';
+import { loadDecorations, useDecorations } from '../lib/decorations';
 import { updateSettings, useSettings, type Keybinds } from '../lib/settings';
 import { Avatar, Button, ErrorText, Field, inputClass } from './ui';
 
-type Tab = 'account' | 'appearance' | 'voice' | 'keybinds';
+type Tab = 'account' | 'decorations' | 'appearance' | 'voice' | 'keybinds';
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'account', label: 'My Account' },
+  { id: 'decorations', label: 'Avatar Decoration' },
   { id: 'appearance', label: 'Appearance' },
   { id: 'voice', label: 'Voice & Video' },
   { id: 'keybinds', label: 'Keybinds' },
@@ -44,6 +46,7 @@ export default function UserSettings({ onClose }: { onClose: () => void }) {
       <div className="scroll-thin flex-1 overflow-y-auto px-10 py-16">
         <div className="mx-auto max-w-2xl">
           {tab === 'account' && <AccountTab />}
+          {tab === 'decorations' && <DecorationTab />}
           {tab === 'appearance' && <AppearanceTab />}
           {tab === 'voice' && <VoiceTab />}
           {tab === 'keybinds' && <KeybindsTab />}
@@ -173,6 +176,100 @@ function LogoutButton() {
       className="block w-full rounded px-2 py-1.5 text-left text-[15px] text-vulo-red hover:bg-vulo-red hover:text-white"
     >
       Log out
+    </button>
+  );
+}
+
+function DecorationTab() {
+  const { profile, updateProfile } = useAuth();
+  const decorations = useDecorations();
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    void loadDecorations();
+  }, []);
+
+  if (!profile) return null;
+
+  const choose = async (id: string | null) => {
+    if (pending || id === profile.decoration_id) return;
+    setPending(true);
+    setError(null);
+    try {
+      await updateProfile({ decoration_id: id });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not save.');
+    } finally {
+      setPending(false);
+    }
+  };
+
+  const current = decorations.find((d) => d.id === profile.decoration_id);
+
+  return (
+    <Section title="Avatar decoration">
+      <div className="mb-6 flex items-center gap-5 rounded bg-vulo-side p-5">
+        <Avatar profile={profile} size="lg" />
+        <div className="min-w-0">
+          <p className="truncate text-lg font-semibold text-vulo-bright">{current ? current.name : 'No decoration'}</p>
+          <p className="text-sm text-vulo-muted">Shown around your avatar everywhere you appear.</p>
+        </div>
+      </div>
+
+      <ErrorText>{error}</ErrorText>
+
+      <p className="mb-3 text-xs font-bold uppercase tracking-wide text-vulo-muted">Choose a decoration</p>
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        <DecorationOption label="None" selected={!profile.decoration_id} disabled={pending} onSelect={() => void choose(null)}>
+          <Avatar profile={{ ...profile, decoration_id: null }} size="md" />
+        </DecorationOption>
+        {decorations.map((d) => (
+          <DecorationOption
+            key={d.id}
+            label={d.name}
+            hint={d.animated ? 'Animated' : undefined}
+            selected={profile.decoration_id === d.id}
+            disabled={pending}
+            onSelect={() => void choose(d.id)}
+          >
+            <Avatar profile={{ ...profile, decoration_id: d.id }} size="md" />
+          </DecorationOption>
+        ))}
+      </div>
+      {decorations.length === 0 && <p className="mt-3 text-sm text-vulo-muted">Decorations are loading…</p>}
+    </Section>
+  );
+}
+
+function DecorationOption({
+  label,
+  hint,
+  selected,
+  disabled,
+  onSelect,
+  children,
+}: {
+  label: string;
+  hint?: string;
+  selected: boolean;
+  disabled: boolean;
+  onSelect: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      disabled={disabled}
+      aria-pressed={selected}
+      className={`flex flex-col items-center gap-2 rounded p-4 text-center transition disabled:cursor-wait ${
+        selected ? 'bg-vulo-active ring-2 ring-vulo-accent' : 'bg-vulo-side hover:bg-vulo-hover'
+      }`}
+    >
+      <span className="flex h-16 w-16 items-center justify-center">{children}</span>
+      <span className="text-sm font-medium text-vulo-bright">{label}</span>
+      {hint && <span className="text-xs text-vulo-muted">{hint}</span>}
     </button>
   );
 }

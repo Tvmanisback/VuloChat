@@ -1,4 +1,5 @@
 import { useEffect, type ButtonHTMLAttributes, type ReactNode } from 'react';
+import { decorationSrc, useDecorations } from '../lib/decorations';
 import type { Profile, UserStatus } from '../lib/types';
 
 export function Logo({ className = 'h-10 w-10' }: { className?: string }) {
@@ -47,15 +48,18 @@ export function Avatar({
   ringClass = 'border-vulo-chat',
   className = '',
 }: {
-  profile: Pick<Profile, 'id' | 'username' | 'display_name' | 'avatar_url'> | null;
+  profile: Pick<Profile, 'id' | 'username' | 'display_name' | 'avatar_url' | 'decoration_id'> | null;
   size?: 'xs' | 'sm' | 'md' | 'lg';
   status?: UserStatus;
   ringClass?: string;
   className?: string;
 }) {
+  const decorations = useDecorations();
   const name = profile?.display_name || profile?.username || '?';
   const seed = (profile?.id ?? name).split('').reduce((a, c) => a + c.charCodeAt(0), 0);
   const dims = { xs: 'h-6 w-6 text-[10px]', sm: 'h-8 w-8 text-xs', md: 'h-10 w-10 text-sm', lg: 'h-20 w-20 text-2xl' }[size];
+  const decorationId = profile?.decoration_id ?? null;
+  const decoration = decorationId ? decorations.find((d) => d.id === decorationId) : undefined;
   return (
     <div className={`relative shrink-0 ${className}`}>
       {profile?.avatar_url ? (
@@ -67,6 +71,15 @@ export function Avatar({
         >
           {name.slice(0, 1).toUpperCase()}
         </div>
+      )}
+      {decoration && (
+        // Frames are drawn larger than the picture so the picture sits inside the ring.
+        <img
+          src={decorationSrc(decoration)}
+          alt=""
+          aria-hidden="true"
+          className="pointer-events-none absolute left-1/2 top-1/2 h-[136%] w-[136%] max-w-none -translate-x-1/2 -translate-y-1/2"
+        />
       )}
       {status && <StatusDot status={status} ring={ringClass} />}
     </div>

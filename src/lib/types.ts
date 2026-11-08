@@ -6,9 +6,18 @@ export interface Profile {
   username: string;
   display_name: string | null;
   avatar_url: string | null;
+  decoration_id: string | null;
   about: string | null;
   status: UserStatus;
   created_at: string;
+}
+
+export interface AvatarDecoration {
+  id: string;
+  name: string;
+  asset_path: string;
+  animated: boolean;
+  position: number;
 }
 
 export interface Server {

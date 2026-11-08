@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useState, type React
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from './supabase';
 import { CONFIRM_URL } from './site';
+import { loadDecorations } from './decorations';
 import type { Profile, UserStatus } from './types';
 
 interface AuthState {
@@ -13,7 +14,7 @@ interface AuthState {
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
   setStatus: (status: UserStatus) => Promise<void>;
-  updateProfile: (patch: Partial<Pick<Profile, 'display_name' | 'about' | 'avatar_url'>>) => Promise<void>;
+  updateProfile: (patch: Partial<Pick<Profile, 'display_name' | 'about' | 'avatar_url' | 'decoration_id'>>) => Promise<void>;
 }
 
 const AuthCtx = createContext<AuthState | null>(null);
@@ -47,6 +48,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       sub.subscription.unsubscribe();
     };
   }, [loadProfile]);
+
+  // The decoration catalog needs a signed-in user, so it loads once a session exists.
+  useEffect(() => {
+    if (session) void loadDecorations();
+  }, [session]);
 
   // Keep the profile row in sync when another device or tab changes it.
   useEffect(() => {
