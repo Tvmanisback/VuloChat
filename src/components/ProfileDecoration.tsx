@@ -2,16 +2,12 @@ import { useEffect } from 'react';
 import { loadProfileDecorations, profileDecorationSrc, useProfileDecorations } from '../lib/profileDecorations';
 import { useSettings } from '../lib/settings';
 
-/**
- * Fits the selected decoration to the profile information panel without distorting its aspect ratio.
- * The parent must be positioned; its own clipping controls the visible decoration area.
- */
+/** Renders banner art in the banner slot and portrait frames around the whole profile card. */
 export default function ProfileDecorationOverlay({
   decorationId,
   forceDecoration = false,
 }: {
   decorationId: string | null | undefined;
-  /** Shows the decoration even when the viewer has turned decorations off. Used by the settings previews. */
   forceDecoration?: boolean;
 }) {
   const items = useProfileDecorations();
@@ -25,12 +21,17 @@ export default function ProfileDecorationOverlay({
   const item = items.find((d) => d.id === decorationId);
   if (!item) return null;
 
+  const src = profileDecorationSrc(item);
+  const isPortraitFrame = /-profile\.svg$/i.test(item.asset_path);
+
   return (
     <img
-      src={profileDecorationSrc(item)}
+      src={src}
       alt=""
       aria-hidden="true"
-      className="pointer-events-none absolute inset-0 z-0 h-full w-full object-cover object-center"
+      className={isPortraitFrame
+        ? 'pointer-events-none absolute inset-0 z-20 h-full w-full object-contain'
+        : 'pointer-events-none absolute left-0 top-0 z-10 h-28 w-full object-contain'}
     />
   );
 }
