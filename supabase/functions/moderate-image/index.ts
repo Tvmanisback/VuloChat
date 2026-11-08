@@ -57,9 +57,17 @@ Deno.serve(async (req) => {
     return json({ error: 'check_unreachable' }, 502);
   }
 
-  const data = (await res.json().catch(() => null)) as { status?: string; nudity?: Record<string, unknown> } | null;
+  const data = (await res.json().catch(() => null)) as
+    | { status?: string; nudity?: Record<string, unknown>; error?: { type?: string; message?: string } }
+    | null;
   if (!res.ok || data?.status !== 'success' || !data.nudity) {
-    console.error('moderate-image: the check failed with status', res.status);
+    // Sightengine's error message says what it rejected. It never contains the secret.
+    console.error(
+      'moderate-image: the check failed with status',
+      res.status,
+      data?.error?.type ?? 'no_error_type',
+      data?.error?.message ?? 'no_error_message',
+    );
     return json({ error: 'check_failed' }, 502);
   }
 
