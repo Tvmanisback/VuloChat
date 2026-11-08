@@ -1,13 +1,13 @@
-# VuloChat build, deploy and release pipeline.
+# VuloChat build and release pipeline.
 #
-#  web      builds the website (repo root) once and shares dist/ with the other jobs
-#  pages    deploys dist/ to GitHub Pages on pushes to main
-#  windows  builds the Windows installer and portable .exe from Pc/
-#  android  builds the Android .apk from Android/
+#  windows  builds the website, then the Windows installer and portable .exe from Pc/
+#  android  builds the website, then the Android .apk from Android/
 #  release  on a v* tag, attaches the .exe and .apk to a GitHub release
 #
+# The website is not built or deployed here. GitHub Pages is configured in
+# the repository settings (Settings > Pages).
+#
 # Repository settings needed once:
-#   Settings > Pages > Source: "GitHub Actions"
 #   Settings > Secrets and variables > Actions:
 #     vars.VITE_SUPABASE_URL                 (optional, defaults to the VuloChat project)
 #     vars.VITE_SUPABASE_PUBLISHABLE_KEY     (optional, defaults to the VuloChat project)
@@ -28,8 +28,6 @@ on:
 
 permissions:
   contents: write
-  pages: write
-  id-token: write
 
 concurrency:
   group: vulochat-${{ github.ref }}
@@ -40,53 +38,8 @@ env:
   DEFAULT_SUPABASE_URL: https://yejtrubajgyphbggtjrd.supabase.co
 
 jobs:
-  web:
-    name: Build website
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-
-      - name: Install dependencies
-        run: npm install --no-audit --no-fund
-
-      - name: Type-check and build
-        env:
-          VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL || env.DEFAULT_SUPABASE_URL }}
-          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY }}
-        run: npm run build
-
-      - name: Upload web build for the other jobs
-        uses: actions/upload-artifact@v4
-        with:
-          name: web-dist
-          path: dist
-          retention-days: 7
-
-      - name: Upload GitHub Pages artifact
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: dist
-
-  pages:
-    name: Deploy to GitHub Pages
-    needs: web
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - id: deployment
-        uses: actions/deploy-pages@v4
-
   windows:
     name: Build Windows app (.exe)
-    needs: web
     runs-on: windows-latest
     defaults:
       run:
@@ -94,19 +47,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/download-artifact@v4
-        with:
-          name: web-dist
-          path: web-dist
-
-      - name: Sync the latest website into the desktop shell
-        run: |
-          rm -rf Pc/www
-          cp -r web-dist Pc/www
-
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
+
+      - name: Build the website
+        env:
+          VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL || env.DEFAULT_SUPABASE_URL }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY }}
+        run: |
+          npm install --no-audit --no-fund
+          npm run build
+
+      - name: Copy the website into the desktop shell
+        run: |
+          rm -rf Pc/www
+          cp -r dist Pc/www
 
       - name: Install Electron and builder
         working-directory: Pc
@@ -125,29 +81,31 @@ jobs:
 
   android:
     name: Build Android app (.apk)
-    needs: web
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/setup-node@v4
         with:
-          name: web-dist
-          path: web-dist
+          node-version: ${{ env.NODE_VERSION }}
 
-      - name: Sync the latest website into the Android shell
+      - name: Build the website
+        env:
+          VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL || env.DEFAULT_SUPABASE_URL }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY }}
+        run: |
+          npm install --no-audit --no-fund
+          npm run build
+
+      - name: Copy the website into the Android shell
         run: |
           rm -rf Android/www
-          cp -r web-dist Android/www
+          cp -r dist Android/www
 
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
 
       - name: Install Capacitor
         working-directory: Android
