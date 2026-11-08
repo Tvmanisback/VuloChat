@@ -45,12 +45,12 @@ The default settings already point at the VuloChat database, so you only need `.
 
 ### 3. Publish the website with GitHub Pages
 
-1. Go to **Settings → Pages** and set **Source** to **Deploy from a branch**.
-2. Set the branch to **main** and the folder to **/docs**.
-3. Run `npm run publish:web`. This builds the site into `docs/`.
-4. Commit and push the `docs` folder. GitHub Pages publishes the new version.
+The workflow in [`.github/workflows/pages.yml`](.github/workflows/pages.yml) builds the site and publishes it every time you push to `main`.
 
-Run `npm run publish:web` again after each change to the site.
+1. Go to **Settings → Pages** and set **Source** to **GitHub Actions**.
+2. Push to `main`, or open the **Actions** tab and run **Publish website to GitHub Pages** manually.
+
+Once the run finishes, the site is live at `https://<your-username>.github.io/VuloChat/`.
 
 ### 4. Build the Windows and Android apps
 
@@ -76,12 +76,13 @@ VuloChat/
 ├── public/                       static files, such as the favicon
 ├── index.html                    website entry (source)
 ├── confirm.html                  email confirmation page
-├── docs/                         published website for GitHub Pages
 ├── package.json                  website dependencies and scripts
 ├── Pc/                           Windows app (Electron)
 ├── Android/                      Android app (Capacitor)
 ├── supabase/schema.sql           database: tables, policies, functions, realtime, storage
-└── .github/workflows/build.yml   builds the .exe and .apk, attaches them to releases
+└── .github/workflows/
+    ├── pages.yml                 publishes the website to GitHub Pages
+    └── build.yml                 builds the .exe and .apk, attaches them to releases
 ```
 
 ## Known limits in v1.0.0
