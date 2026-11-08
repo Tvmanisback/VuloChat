@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../lib/auth';
 import { bannerBackground } from '../lib/banner';
+import { loadDecorations } from '../lib/decorations';
+import { loadNameplates, nameplateSrc, useNameplates } from '../lib/nameplates';
 import { useProfileBadges } from '../lib/badges';
 import type { Profile, UserStatus } from '../lib/types';
 import BadgeIcon from './BadgeIcon';
@@ -18,10 +20,17 @@ const STATUS_LABEL: Record<UserStatus, string> = {
 
 export default function ProfileCard({ profile, onClose }: { profile: Profile; onClose: () => void }) {
   const badges = useProfileBadges(profile.id);
+  const nameplates = useNameplates();
+  const nameplate = nameplates.find((item) => item.id === profile.nameplate_id);
   const name = profile.display_name || profile.username;
   const joined = new Date(profile.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
   const { session } = useAuth();
   const [reporting, setReporting] = useState(false);
+
+  useEffect(() => {
+    void loadDecorations();
+    void loadNameplates();
+  }, []);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -56,7 +65,17 @@ export default function ProfileCard({ profile, onClose }: { profile: Profile; on
 
           <div className="relative z-10 overflow-hidden rounded-lg bg-transparent p-3">
             <div className="relative z-10">
-              <p className="truncate text-lg font-bold text-vulo-bright">{name}</p>
+              <div className="relative mb-1 flex min-h-9 items-center">
+                {nameplate && (
+                  <img
+                    src={nameplateSrc(nameplate)}
+                    alt=""
+                    aria-hidden="true"
+                    className="pointer-events-none absolute inset-y-0 left-0 h-full max-w-full object-contain object-left"
+                  />
+                )}
+                <p className="relative z-10 truncate px-1 text-lg font-bold text-vulo-bright">{name}</p>
+              </div>
               <p className="truncate text-sm text-vulo-muted">@{profile.username}</p>
               <p className="mt-1 text-xs text-vulo-muted">{STATUS_LABEL[profile.status]}</p>
 
