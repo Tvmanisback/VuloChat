@@ -29,8 +29,8 @@ export default function BadgeIcon({ badge, size = 'normal' }: { badge: Badge; si
         onClick={() => setOpen((o) => !o)}
         aria-label={badge.name}
         aria-expanded={open}
-        className={`flex items-center justify-center rounded-md bg-vulo-side/80 transition hover:bg-vulo-hover focus-visible:ring-2 focus-visible:ring-vulo-accent ${size === 'small' ? 'h-6 w-6' : 'h-8 w-8'}`}
-        style={{ boxShadow: `inset 0 0 0 1px ${badge.color}66` }}
+        className={`flex items-center justify-center rounded-full bg-transparent transition hover:bg-vulo-hover/40 focus-visible:ring-2 focus-visible:ring-vulo-accent ${size === 'small' ? 'h-4 w-4' : 'h-5 w-5'}`}
+        style={{ boxShadow: 'none' }}
       >
         {badge.icon_path ? (
           <img src={`${import.meta.env.BASE_URL}${badge.icon_path}`} alt="" aria-hidden="true" className={size === 'small' ? 'h-5 w-5' : 'h-6 w-6'} />
