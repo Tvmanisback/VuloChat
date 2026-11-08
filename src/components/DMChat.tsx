@@ -107,7 +107,7 @@ export default function DMChat({ userId, friend }: Props) {
       recipient_id: friend.id,
       content: encryptedContent,
       attachments,
-      embeds,
+      embeds: [],
     });
     if (error) throw error;
     stick.current = true;
