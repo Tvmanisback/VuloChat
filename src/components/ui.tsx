@@ -1,4 +1,4 @@
-import { useEffect, type ButtonHTMLAttributes, type ReactNode } from 'react';
+import { useEffect, type ButtonHTMLAttributes, type CSSProperties, type ReactNode } from 'react';
 import { decorationSrc, useDecorations } from '../lib/decorations';
 import type { Profile, UserStatus } from '../lib/types';
 
@@ -41,18 +41,30 @@ export function StatusDot({ status, ring }: { status: UserStatus; ring: string }
 
 const AVATAR_COLORS = ['#5865f2', '#3ba55d', '#faa61a', '#ed4245', '#eb459e', '#7c5cff', '#00a8fc'];
 
+// A decoration reflects the owner's status: away looks faded, do not disturb looks red,
+// and offline looks grey.
+const STATUS_DECORATION: Record<UserStatus, CSSProperties> = {
+  online: {},
+  idle: { opacity: 0.6 },
+  dnd: { filter: 'hue-rotate(-35deg) saturate(1.6)' },
+  offline: { filter: 'grayscale(1)', opacity: 0.6 },
+};
+
 export function Avatar({
   profile,
   size = 'md',
   status,
   ringClass = 'border-vulo-chat',
   className = '',
+  speaking = false,
 }: {
   profile: Pick<Profile, 'id' | 'username' | 'display_name' | 'avatar_url' | 'decoration_id'> | null;
   size?: 'xs' | 'sm' | 'md' | 'lg';
   status?: UserStatus;
   ringClass?: string;
   className?: string;
+  /** True while this person is talking in a voice channel. Voice-reactive decorations pulse. */
+  speaking?: boolean;
 }) {
   const decorations = useDecorations();
   const name = profile?.display_name || profile?.username || '?';
@@ -78,7 +90,10 @@ export function Avatar({
           src={decorationSrc(decoration)}
           alt=""
           aria-hidden="true"
-          className="pointer-events-none absolute left-1/2 top-1/2 h-[136%] w-[136%] max-w-none -translate-x-1/2 -translate-y-1/2"
+          style={status ? STATUS_DECORATION[status] : undefined}
+          className={`pointer-events-none absolute left-1/2 top-1/2 h-[136%] w-[136%] max-w-none -translate-x-1/2 -translate-y-1/2 ${
+            decoration.reacts_to_voice && speaking ? 'animate-pulse' : ''
+          }`}
         />
       )}
       {status && <StatusDot status={status} ring={ringClass} />}

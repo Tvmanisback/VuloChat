@@ -40,7 +40,7 @@ export default function VoiceStage({ channel, serverId, voiceStates, members, us
                 speaking ? 'ring-2 ring-vulo-green' : ''
               }`}
             >
-              <Avatar profile={p} size="lg" />
+              <Avatar profile={p} size="lg" speaking={speaking} />
               <p className="mt-3 max-w-[90%] truncate font-semibold text-vulo-bright">
                 {p?.display_name || p?.username || 'Unknown'}
                 {isMe && <span className="ml-1 text-xs text-vulo-muted">(you)</span>}

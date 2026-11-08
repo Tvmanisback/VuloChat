@@ -2,19 +2,23 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { useAuth } from '../lib/auth';
 import { supabase } from '../lib/supabase';
 import { loadDecorations, useDecorations } from '../lib/decorations';
+import { loadNameplates, nameplateSrc, useNameplates } from '../lib/nameplates';
+import { useLockReasons } from '../lib/cosmetics';
 import { useProfileBadges } from '../lib/badges';
 import { bannerBackground } from '../lib/banner';
 import { updateSettings, useSettings, type Keybinds } from '../lib/settings';
 import { Avatar, Button, ErrorText, Field, inputClass } from './ui';
 import BadgeIcon from './BadgeIcon';
+import NameplateBackdrop from './Nameplate';
 import { CUSTOM_DEFAULT, PRESETS, type PresetName, type ThemeColors, type ThemeName } from '../lib/themes';
 
-type Tab = 'account' | 'profile' | 'decorations' | 'appearance' | 'voice' | 'keybinds';
+type Tab = 'account' | 'profile' | 'decorations' | 'nameplates' | 'appearance' | 'voice' | 'keybinds';
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'account', label: 'My Account' },
   { id: 'profile', label: 'Profile' },
   { id: 'decorations', label: 'Avatar Decoration' },
+  { id: 'nameplates', label: 'Nameplate' },
   { id: 'appearance', label: 'Appearance' },
   { id: 'voice', label: 'Voice & Video' },
   { id: 'keybinds', label: 'Keybinds' },
@@ -53,6 +57,7 @@ export default function UserSettings({ onClose }: { onClose: () => void }) {
           {tab === 'account' && <AccountTab />}
           {tab === 'profile' && <ProfileTab />}
           {tab === 'decorations' && <DecorationTab />}
+          {tab === 'nameplates' && <NameplateTab />}
           {tab === 'appearance' && <AppearanceTab />}
           {tab === 'voice' && <VoiceTab />}
           {tab === 'keybinds' && <KeybindsTab />}
@@ -356,6 +361,7 @@ function ProfileTab() {
 function DecorationTab() {
   const { profile, updateProfile } = useAuth();
   const decorations = useDecorations();
+  const reasonFor = useLockReasons(profile?.id ?? null);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -397,18 +403,21 @@ function DecorationTab() {
         <DecorationOption label="None" selected={!profile.decoration_id} disabled={pending} onSelect={() => void choose(null)}>
           <Avatar profile={{ ...profile, decoration_id: null }} size="md" />
         </DecorationOption>
-        {decorations.map((d) => (
-          <DecorationOption
-            key={d.id}
-            label={d.name}
-            hint={d.animated ? 'Animated' : undefined}
-            selected={profile.decoration_id === d.id}
-            disabled={pending}
-            onSelect={() => void choose(d.id)}
-          >
-            <Avatar profile={{ ...profile, decoration_id: d.id }} size="md" />
-          </DecorationOption>
-        ))}
+        {decorations.map((d) => {
+          const reason = reasonFor(d);
+          return (
+            <DecorationOption
+              key={d.id}
+              label={d.name}
+              hint={reason ?? (d.reacts_to_voice ? 'Reacts to voice' : d.animated ? 'Animated' : undefined)}
+              selected={profile.decoration_id === d.id}
+              disabled={pending || !!reason}
+              onSelect={() => void choose(d.id)}
+            >
+              <Avatar profile={{ ...profile, decoration_id: d.id }} size="md" />
+            </DecorationOption>
+          );
+        })}
       </div>
       {decorations.length === 0 && <p className="mt-3 text-sm text-vulo-muted">Decorations are loading…</p>}
 
@@ -424,6 +433,106 @@ function DecorationTab() {
         </div>
       </div>
     </Section>
+  );
+}
+
+function NameplateTab() {
+  const { profile, updateProfile } = useAuth();
+  const nameplates = useNameplates();
+  const reasonFor = useLockReasons(profile?.id ?? null);
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    void loadNameplates();
+  }, []);
+
+  if (!profile) return null;
+
+  const choose = async (id: string | null) => {
+    if (pending || id === profile.nameplate_id) return;
+    setPending(true);
+    setError(null);
+    try {
+      await updateProfile({ nameplate_id: id });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not save.');
+    } finally {
+      setPending(false);
+    }
+  };
+
+  const current = nameplates.find((n) => n.id === profile.nameplate_id);
+
+  return (
+    <Section title="Nameplate">
+      <div className="relative mb-6 overflow-hidden rounded bg-vulo-side p-5">
+        <NameplateBackdrop nameplateId={profile.nameplate_id} />
+        <div className="relative flex items-center gap-5">
+          <Avatar profile={profile} size="lg" />
+          <div className="min-w-0">
+            <p className="truncate text-lg font-semibold text-vulo-bright">{current ? current.name : 'No nameplate'}</p>
+            <p className="text-sm text-vulo-muted">Shown behind your name in the member list and on your profile.</p>
+          </div>
+        </div>
+      </div>
+
+      <ErrorText>{error}</ErrorText>
+
+      <p className="mb-3 text-xs font-bold uppercase tracking-wide text-vulo-muted">Choose a nameplate</p>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <NameplateOption label="None" selected={!profile.nameplate_id} disabled={pending} onSelect={() => void choose(null)} />
+        {nameplates.map((n) => {
+          const reason = reasonFor(n);
+          return (
+            <NameplateOption
+              key={n.id}
+              label={n.name}
+              src={nameplateSrc(n)}
+              hint={reason ?? (n.animated ? 'Animated' : undefined)}
+              selected={profile.nameplate_id === n.id}
+              disabled={pending || !!reason}
+              onSelect={() => void choose(n.id)}
+            />
+          );
+        })}
+      </div>
+      {nameplates.length === 0 && <p className="mt-3 text-sm text-vulo-muted">Nameplates are loading…</p>}
+    </Section>
+  );
+}
+
+function NameplateOption({
+  label,
+  hint,
+  src,
+  selected,
+  disabled,
+  onSelect,
+}: {
+  label: string;
+  hint?: string;
+  src?: string;
+  selected: boolean;
+  disabled: boolean;
+  onSelect: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      disabled={disabled}
+      aria-pressed={selected}
+      className={`flex flex-col gap-2 rounded p-3 text-left transition disabled:cursor-not-allowed disabled:opacity-60 ${
+        selected ? 'bg-vulo-active ring-2 ring-vulo-accent' : 'bg-vulo-side hover:bg-vulo-hover'
+      }`}
+    >
+      <span className="relative block h-14 w-full overflow-hidden rounded bg-vulo-chat">
+        {src && <img src={src} alt="" aria-hidden="true" className="absolute inset-0 h-full w-full object-cover" />}
+      </span>
+      <span className="text-sm font-medium text-vulo-bright">{label}</span>
+      {hint && <span className="text-xs text-vulo-muted">{hint}</span>}
+    </button>
   );
 }
 

@@ -8,6 +8,7 @@ export interface Profile {
   avatar_url: string | null;
   animated_avatar: boolean;
   decoration_id: string | null;
+  nameplate_id: string | null;
   banner_url: string | null;
   animated_banner: boolean;
   accent_color: string | null;
@@ -23,6 +24,19 @@ export interface AvatarDecoration {
   asset_path: string;
   animated: boolean;
   position: number;
+  required_badge_id: string | null;
+  available_until: string | null;
+  reacts_to_voice: boolean;
+}
+
+export interface Nameplate {
+  id: string;
+  name: string;
+  asset_path: string;
+  animated: boolean;
+  position: number;
+  required_badge_id: string | null;
+  available_until: string | null;
 }
 
 export interface Badge {

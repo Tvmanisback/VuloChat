@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import type { MemberRow, MemberRoleRow, Profile, Role, UserStatus } from '../lib/types';
+import NameplateBackdrop from './Nameplate';
 import { Avatar } from './ui';
 
 interface Props {
@@ -52,14 +53,17 @@ export default function MemberList({ members, roles, memberRoles, ownerId, onOpe
                   type="button"
                   onClick={() => p && onOpenProfile?.(p)}
                   disabled={!p}
-                  className={`flex w-full items-center gap-3 rounded px-2 py-1.5 text-left hover:bg-vulo-hover disabled:cursor-default ${status === 'offline' ? 'opacity-50' : ''}`}
+                  className={`relative isolate flex w-full items-center gap-3 overflow-hidden rounded px-2 py-1.5 text-left hover:bg-vulo-hover disabled:cursor-default ${status === 'offline' ? 'opacity-50' : ''}`}
                 >
-                  <Avatar profile={p ?? null} size="sm" status={status} ringClass="border-vulo-side" />
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-medium" style={{ color: roleColor.get(m.user_id) ?? '#dbdee1' }}>
-                      {name}
+                  <NameplateBackdrop nameplateId={p?.nameplate_id} />
+                  <span className="relative flex w-full min-w-0 items-center gap-3">
+                    <Avatar profile={p ?? null} size="sm" status={status} ringClass="border-vulo-side" />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-medium" style={{ color: roleColor.get(m.user_id) ?? '#dbdee1' }}>
+                        {name}
+                      </span>
+                      {p?.custom_status && <span className="block truncate text-xs text-vulo-muted">{p.custom_status}</span>}
                     </span>
-                    {p?.custom_status && <span className="block truncate text-xs text-vulo-muted">{p.custom_status}</span>}
                   </span>
                 </button>
               </li>

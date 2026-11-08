@@ -74,7 +74,7 @@ export default function ChannelSidebar(props: Props) {
               return (
                 <li key={v.user_id} className="flex items-center gap-2 rounded px-1.5 py-0.5 text-sm text-vulo-text">
                   <span className={`rounded-full p-[1px] ${speaking ? 'ring-2 ring-vulo-green' : ''}`}>
-                    <Avatar profile={p ?? null} size="xs" />
+                    <Avatar profile={p ?? null} size="xs" speaking={!!speaking} />
                   </span>
                   <span className="flex-1 truncate">{p?.display_name || p?.username || 'Unknown'}</span>
                   {v.self_deafen ? <Icon name="deafen" className="h-3.5 w-3.5 text-vulo-red" /> : v.self_mute ? <Icon name="micOff" className="h-3.5 w-3.5 text-vulo-red" /> : null}

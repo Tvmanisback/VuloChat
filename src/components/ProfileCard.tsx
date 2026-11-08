@@ -4,6 +4,7 @@ import { useProfileBadges } from '../lib/badges';
 import type { Profile, UserStatus } from '../lib/types';
 import BadgeIcon from './BadgeIcon';
 import Markdown from './Markdown';
+import NameplateBackdrop from './Nameplate';
 import { Avatar } from './ui';
 
 const STATUS_LABEL: Record<UserStatus, string> = {
@@ -48,31 +49,34 @@ export default function ProfileCard({ profile, onClose }: { profile: Profile; on
             <Avatar profile={profile} size="lg" status={profile.status} ringClass="border-vulo-rail" />
           </div>
 
-          <div className="rounded-lg bg-vulo-chat p-3">
-            <p className="truncate text-lg font-bold text-vulo-bright">{name}</p>
-            <p className="truncate text-sm text-vulo-muted">@{profile.username}</p>
-            <p className="mt-1 text-xs text-vulo-muted">{STATUS_LABEL[profile.status]}</p>
+          <div className="relative overflow-hidden rounded-lg bg-vulo-chat p-3">
+            <NameplateBackdrop nameplateId={profile.nameplate_id} />
+            <div className="relative">
+              <p className="truncate text-lg font-bold text-vulo-bright">{name}</p>
+              <p className="truncate text-sm text-vulo-muted">@{profile.username}</p>
+              <p className="mt-1 text-xs text-vulo-muted">{STATUS_LABEL[profile.status]}</p>
 
-            {profile.custom_status && <p className="mt-2 break-words text-sm text-vulo-text">{profile.custom_status}</p>}
+              {profile.custom_status && <p className="mt-2 break-words text-sm text-vulo-text">{profile.custom_status}</p>}
 
-            {badges.length > 0 && (
-              <ul className="mt-3 flex flex-wrap gap-1.5" aria-label="Badges">
-                {badges.map((b) => (
-                  <li key={b.id}>
-                    <BadgeIcon badge={b} />
-                  </li>
-                ))}
-              </ul>
-            )}
+              {badges.length > 0 && (
+                <ul className="mt-3 flex flex-wrap gap-1.5" aria-label="Badges">
+                  {badges.map((b) => (
+                    <li key={b.id}>
+                      <BadgeIcon badge={b} />
+                    </li>
+                  ))}
+                </ul>
+              )}
 
-            {profile.about && (
-              <div className="mt-3 border-t border-vulo-line pt-3">
-                <p className="mb-1 text-xs font-bold uppercase tracking-wide text-vulo-muted">About me</p>
-                <Markdown text={profile.about} />
-              </div>
-            )}
+              {profile.about && (
+                <div className="mt-3 border-t border-vulo-line pt-3">
+                  <p className="mb-1 text-xs font-bold uppercase tracking-wide text-vulo-muted">About me</p>
+                  <Markdown text={profile.about} />
+                </div>
+              )}
 
-            <p className="mt-3 border-t border-vulo-line pt-3 text-xs text-vulo-muted">Member since {joined}</p>
+              <p className="mt-3 border-t border-vulo-line pt-3 text-xs text-vulo-muted">Member since {joined}</p>
+            </div>
           </div>
         </div>
       </div>

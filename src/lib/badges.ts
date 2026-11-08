@@ -32,3 +32,28 @@ export function useProfileBadges(profileId: string | null): Badge[] {
 
   return badges;
 }
+
+/** Every badge that exists, so a locked item can say which badge it needs. */
+export function useBadgeCatalog(): Badge[] {
+  const [all, setAll] = useState<Badge[]>([]);
+
+  useEffect(() => {
+    let alive = true;
+    supabase
+      .from('badges')
+      .select('*')
+      .then(({ data, error }) => {
+        if (!alive) return;
+        if (error) {
+          console.error('badge catalog failed', error.message);
+          return;
+        }
+        setAll((data as Badge[] | null) ?? []);
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  return all;
+}

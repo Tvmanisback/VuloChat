@@ -811,3 +811,113 @@ create trigger direct_messages_blocked_terms
 -- A forwarded message is a copy. This points back to the original so the app can label it.
 alter table public.messages
   add column forward_of uuid references public.messages(id) on delete set null;
+
+-- ===== Nameplates, badge unlocks, end dates, and voice-reactive decorations (added after v1.0.0) =====
+
+alter table public.avatar_decorations
+  add column required_badge_id uuid references public.badges(id) on delete set null,
+  add column available_until timestamptz,
+  add column reacts_to_voice boolean not null default false;
+
+create table public.nameplates (
+  id uuid primary key default gen_random_uuid(),
+  name text not null check (char_length(name) between 1 and 40),
+  asset_path text not null check (asset_path ~ '^nameplates/[a-z0-9-]+\.(svg|png|webp|gif)$'),
+  animated boolean not null default false,
+  required_badge_id uuid references public.badges(id) on delete set null,
+  available_until timestamptz,
+  position int not null default 0,
+  created_at timestamptz not null default now()
+);
+
+alter table public.nameplates enable row level security;
+
+-- Signed-in users can browse nameplates. There are no insert, update or delete policies,
+-- so only the project owner can add or change them.
+create policy nameplates_select on public.nameplates
+  for select to authenticated using (true);
+
+alter table public.profiles
+  add column nameplate_id uuid references public.nameplates(id) on delete set null;
+create index profiles_nameplate_idx on public.profiles(nameplate_id);
+
+-- A profile can only equip what it is allowed to use: the item must not have expired, and the
+-- profile must hold the required badge. This runs when the item changes, so an item stays equipped
+-- if its badge is removed later.
+create or replace function public.check_profile_cosmetics()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+declare
+  item_badge uuid;
+  item_until timestamptz;
+begin
+  if new.decoration_id is not null and new.decoration_id is distinct from old.decoration_id then
+    select required_badge_id, available_until into item_badge, item_until
+      from public.avatar_decorations where id = new.decoration_id;
+    if item_until is not null and item_until < now() then
+      raise exception 'That decoration is no longer available.';
+    end if;
+    if item_badge is not null and not exists (
+      select 1 from public.profile_badges where profile_id = new.id and badge_id = item_badge
+    ) then
+      raise exception 'You need a badge to use that decoration.';
+    end if;
+  end if;
+
+  if new.nameplate_id is not null and new.nameplate_id is distinct from old.nameplate_id then
+    select required_badge_id, available_until into item_badge, item_until
+      from public.nameplates where id = new.nameplate_id;
+    if item_until is not null and item_until < now() then
+      raise exception 'That nameplate is no longer available.';
+    end if;
+    if item_badge is not null and not exists (
+      select 1 from public.profile_badges where profile_id = new.id and badge_id = item_badge
+    ) then
+      raise exception 'You need a badge to use that nameplate.';
+    end if;
+  end if;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists profiles_check_cosmetics on public.profiles;
+create trigger profiles_check_cosmetics
+  before update of decoration_id, nameplate_id on public.profiles
+  for each row execute function public.check_profile_cosmetics();
+
+-- Beta tester: a profile decoration and a nameplate, both unlocked by the Beta tester badge.
+insert into public.avatar_decorations (id, name, asset_path, animated, required_badge_id, position) values
+  ('d0000000-0000-4000-8000-000000000101', 'Beta tester', 'decorations/beta-tester.svg', false, 'b0000000-0000-4000-8000-000000000003', 30)
+on conflict (id) do nothing;
+
+-- Soundwave pulses while its owner is speaking in a voice channel.
+insert into public.avatar_decorations (id, name, asset_path, animated, reacts_to_voice, position) values
+  ('d0000000-0000-4000-8000-000000000102', 'Soundwave', 'decorations/soundwave.svg', false, true, 31)
+on conflict (id) do nothing;
+
+insert into public.nameplates (id, name, asset_path, animated, required_badge_id, position) values
+  ('a0000000-0000-4000-8000-000000000001', 'Harvest Gold', 'nameplates/harvest-gold.svg', false, null, 0),
+  ('a0000000-0000-4000-8000-000000000002', 'Maple Leaves', 'nameplates/maple-leaves.svg', false, null, 1),
+  ('a0000000-0000-4000-8000-000000000003', 'Acorn Trail', 'nameplates/acorn-trail.svg', false, null, 2),
+  ('a0000000-0000-4000-8000-000000000004', 'Cornucopia', 'nameplates/cornucopia.svg', false, null, 3),
+  ('a0000000-0000-4000-8000-000000000005', 'Pecan Pie', 'nameplates/pecan-pie.svg', false, null, 4),
+  ('a0000000-0000-4000-8000-000000000006', 'Cranberry', 'nameplates/cranberry.svg', false, null, 5),
+  ('a0000000-0000-4000-8000-000000000007', 'Turkey Feathers', 'nameplates/turkey-feathers.svg', false, null, 6),
+  ('a0000000-0000-4000-8000-000000000008', 'Corn Husk', 'nameplates/corn-husk.svg', false, null, 7),
+  ('a0000000-0000-4000-8000-000000000009', 'Autumn Plaid', 'nameplates/autumn-plaid.svg', false, null, 8),
+  ('a0000000-0000-4000-8000-000000000010', 'Cozy Knit', 'nameplates/cozy-knit.svg', false, null, 9),
+  ('a0000000-0000-4000-8000-000000000011', 'Hot Cocoa', 'nameplates/hot-cocoa.svg', false, null, 10),
+  ('a0000000-0000-4000-8000-000000000012', 'Pilgrim Buckle', 'nameplates/pilgrim-buckle.svg', false, null, 11),
+  ('a0000000-0000-4000-8000-000000000013', 'Parade Balloons', 'nameplates/parade-balloons.svg', false, null, 12),
+  ('a0000000-0000-4000-8000-000000000014', 'Oak Branch', 'nameplates/oak-branch.svg', false, null, 13),
+  ('a0000000-0000-4000-8000-000000000015', 'Harvest Moon', 'nameplates/harvest-moon.svg', false, null, 14),
+  ('a0000000-0000-4000-8000-000000000016', 'Campfire', 'nameplates/campfire.svg', false, null, 15),
+  ('a0000000-0000-4000-8000-000000000017', 'Gingham', 'nameplates/gingham.svg', false, null, 16),
+  ('a0000000-0000-4000-8000-000000000018', 'Bare Branches', 'nameplates/bare-branches.svg', false, null, 17),
+  ('a0000000-0000-4000-8000-000000000019', 'Grateful Hearts', 'nameplates/grateful-hearts.svg', false, null, 18),
+  ('a0000000-0000-4000-8000-000000000020', 'Giving Tree', 'nameplates/giving-tree.svg', false, null, 19),
+  ('a0000000-0000-4000-8000-000000000021', 'Beta tester', 'nameplates/beta-tester.svg', false, 'b0000000-0000-4000-8000-000000000003', 100)
+on conflict (id) do nothing;

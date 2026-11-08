@@ -3,6 +3,7 @@ import type { Session } from '@supabase/supabase-js';
 import { supabase } from './supabase';
 import { CONFIRM_URL } from './site';
 import { loadDecorations } from './decorations';
+import { loadNameplates } from './nameplates';
 import { loadEmojis } from './emojis';
 import { loadStickers } from './stickers';
 import type { Profile, UserStatus } from './types';
@@ -25,6 +26,7 @@ interface AuthState {
         | 'avatar_url'
         | 'animated_avatar'
         | 'decoration_id'
+        | 'nameplate_id'
         | 'banner_url'
         | 'animated_banner'
         | 'custom_status'
@@ -70,6 +72,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (session) {
       void loadDecorations();
+      void loadNameplates();
       void loadEmojis();
       void loadStickers();
     }
