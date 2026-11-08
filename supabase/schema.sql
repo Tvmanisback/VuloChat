@@ -654,3 +654,41 @@ insert into public.avatar_decorations (id, name, asset_path, animated, position)
   ('d0000000-0000-4000-8000-000000000024', 'Ocean wave', 'decorations/wave-ring.svg', true, 23),
   ('d0000000-0000-4000-8000-000000000025', 'Clover', 'decorations/clover.svg', false, 24)
 on conflict (id) do nothing;
+
+-- ===== Saved GIFs (added after v1.0.0) =====
+-- Favorites per account. Each person sees and manages only their own, up to 200.
+
+create table public.gif_favorites (
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  gif_id text not null check (char_length(gif_id) between 1 and 64),
+  title text not null default 'GIF' check (char_length(title) <= 200),
+  preview_url text not null check (preview_url ~ '^https://'),
+  full_url text not null check (full_url ~ '^https://'),
+  created_at timestamptz not null default now(),
+  primary key (user_id, gif_id)
+);
+
+create index gif_favorites_recent_idx on public.gif_favorites(user_id, created_at desc);
+
+create or replace function public.gif_favorite_limit()
+returns trigger language plpgsql set search_path = public as $$
+begin
+  if (select count(*) from public.gif_favorites where user_id = new.user_id) >= 200 then
+    raise exception 'you can save up to 200 favorite GIFs';
+  end if;
+  return new;
+end;
+$$;
+
+create trigger gif_favorite_limit
+  before insert on public.gif_favorites
+  for each row execute function public.gif_favorite_limit();
+
+alter table public.gif_favorites enable row level security;
+
+create policy gif_favorites_select on public.gif_favorites for select to authenticated
+  using (user_id = auth.uid());
+create policy gif_favorites_insert on public.gif_favorites for insert to authenticated
+  with check (user_id = auth.uid());
+create policy gif_favorites_delete on public.gif_favorites for delete to authenticated
+  using (user_id = auth.uid());
