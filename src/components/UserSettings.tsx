@@ -3,6 +3,7 @@ import { useAuth } from '../lib/auth';
 import { supabase } from '../lib/supabase';
 import { loadDecorations, useDecorations } from '../lib/decorations';
 import { useProfileBadges } from '../lib/badges';
+import { bannerBackground } from '../lib/banner';
 import { updateSettings, useSettings, type Keybinds } from '../lib/settings';
 import { Avatar, Button, ErrorText, Field, inputClass } from './ui';
 
@@ -187,11 +188,29 @@ function ProfileTab() {
   const { profile, session, updateProfile } = useAuth();
   const badges = useProfileBadges(profile?.id ?? null);
   const [customStatus, setCustomStatus] = useState(profile?.custom_status ?? '');
+  const [accent, setAccent] = useState(profile?.accent_color ?? '#7c5cff');
+  const [accentBusy, setAccentBusy] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
 
   if (!profile) return null;
+
+  // Null clears the color, which puts the default banner back.
+  const saveAccent = async (color: string | null) => {
+    setError(null);
+    setSaved(false);
+    setAccentBusy(true);
+    try {
+      await updateProfile({ accent_color: color });
+      setAccent(color ?? '#7c5cff');
+      setSaved(true);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not save the color.');
+    } finally {
+      setAccentBusy(false);
+    }
+  };
 
   const saveStatus = async () => {
     setError(null);
@@ -244,7 +263,7 @@ function ProfileTab() {
   return (
     <Section title="Profile">
       <div className="mb-6 overflow-hidden rounded-lg bg-vulo-side">
-        <div className="h-28 bg-gradient-to-br from-[#7c5cff] to-[#00a8fc]">
+        <div className="h-28" style={{ background: bannerBackground(profile.accent_color) }}>
           {profile.banner_url && <img src={profile.banner_url} alt="" className="h-full w-full object-cover" />}
         </div>
         <div className="flex items-center justify-between gap-3 p-4">
@@ -293,6 +312,26 @@ function ProfileTab() {
         />
       </Field>
       <Button onClick={() => void saveStatus()}>Save status</Button>
+
+      <div className="mt-8">
+        <p className="mb-3 text-xs font-bold uppercase tracking-wide text-vulo-muted">Profile color</p>
+        <p className="mb-3 text-sm text-vulo-muted">Used for your banner when you have no banner image.</p>
+        <div className="flex items-center gap-3">
+          <input
+            type="color"
+            value={accent}
+            onChange={(e) => setAccent(e.target.value)}
+            className="h-10 w-16 cursor-pointer rounded bg-vulo-rail p-1"
+            aria-label="Profile color"
+          />
+          <Button onClick={() => void saveAccent(accent)} disabled={accentBusy}>
+            Save color
+          </Button>
+          <Button variant="secondary" onClick={() => void saveAccent(null)} disabled={accentBusy}>
+            Reset
+          </Button>
+        </div>
+      </div>
 
       <div className="mt-8">
         <p className="mb-3 text-xs font-bold uppercase tracking-wide text-vulo-muted">Badges</p>
@@ -376,6 +415,18 @@ function DecorationTab() {
         ))}
       </div>
       {decorations.length === 0 && <p className="mt-3 text-sm text-vulo-muted">Decorations are loading…</p>}
+
+      <div className="mt-8 rounded bg-vulo-side p-5">
+        <div className="flex items-center justify-between gap-4">
+          <div className="min-w-0">
+            <p className="font-medium text-vulo-bright">Upload your own decoration</p>
+            <p className="text-sm text-vulo-muted">Coming soon. You will be able to add your own image here later.</p>
+          </div>
+          <Button variant="secondary" disabled>
+            Coming soon
+          </Button>
+        </div>
+      </div>
     </Section>
   );
 }

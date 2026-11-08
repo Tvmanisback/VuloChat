@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <circle cx="50" cy="50" r="44" fill="none" stroke="#3f4147" stroke-width="1"/>
+  <circle cx="0" cy="0" r="3" fill="#00a8fc">
+    <animateMotion dur="3s" repeatCount="indefinite" path="M50 6 A44 44 0 1 1 50 94 A44 44 0 1 1 50 6 Z"/>
+  </circle>
+  <circle cx="0" cy="0" r="3" fill="#23a55a">
+    <animateMotion dur="4.5s" repeatCount="indefinite" path="M50 6 A44 44 0 1 1 50 94 A44 44 0 1 1 50 6 Z"/>
+  </circle>
+  <circle cx="0" cy="0" r="3" fill="#f0b232">
+    <animateMotion dur="6s" begin="1s" repeatCount="indefinite" path="M50 6 A44 44 0 1 1 50 94 A44 44 0 1 1 50 6 Z"/>
+  </circle>
+</svg>

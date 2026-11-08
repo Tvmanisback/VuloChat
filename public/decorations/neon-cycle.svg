@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <circle cx="50" cy="50" r="46" fill="none" stroke="#00a8fc" stroke-width="1" stroke-opacity="0.4">
+    <animate attributeName="stroke" values="#00a8fc;#eb459e;#23a55a;#00a8fc" dur="4s" repeatCount="indefinite"/>
+  </circle>
+  <circle cx="50" cy="50" r="43" fill="none" stroke="#00a8fc" stroke-width="4">
+    <animate attributeName="stroke" values="#00a8fc;#eb459e;#23a55a;#00a8fc" dur="4s" repeatCount="indefinite"/>
+  </circle>
+</svg>

@@ -10,6 +10,7 @@ export interface Profile {
   decoration_id: string | null;
   banner_url: string | null;
   animated_banner: boolean;
+  accent_color: string | null;
   custom_status: string | null;
   about: string | null;
   status: UserStatus;

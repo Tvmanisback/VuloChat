@@ -272,7 +272,7 @@ export default function ChatView({ channel, userId, perms, members, myDisplayNam
                 ) : (
                   m.content && (
                     <div className="text-[15px] leading-[1.375rem]">
-                      <Markdown text={m.content} />
+                      <Markdown text={m.content} serverId={channel.server_id} />
                       {m.edited_at && <span className="ml-1 text-[10px] text-vulo-muted">(edited)</span>}
                     </div>
                   )

@@ -84,6 +84,21 @@ body {
 .markdown del {
   color: #949ba4;
 }
+/* Custom emoji sit on the text line. Animated ones play on their own. */
+.markdown img.emoji {
+  display: inline-block;
+  height: 1.375em;
+  width: auto;
+  vertical-align: -0.3em;
+}
+/* GIFs and uploaded images inside messages. */
+.markdown img.msg-image {
+  display: block;
+  max-height: 20rem;
+  max-width: min(28rem, 100%);
+  border-radius: 4px;
+  margin-top: 0.25rem;
+}
 
 @media (prefers-reduced-motion: reduce) {
   * {

@@ -3,6 +3,7 @@ import type { Session } from '@supabase/supabase-js';
 import { supabase } from './supabase';
 import { CONFIRM_URL } from './site';
 import { loadDecorations } from './decorations';
+import { loadEmojis } from './emojis';
 import type { Profile, UserStatus } from './types';
 
 interface AuthState {
@@ -18,7 +19,15 @@ interface AuthState {
     patch: Partial<
       Pick<
         Profile,
-        'display_name' | 'about' | 'avatar_url' | 'animated_avatar' | 'decoration_id' | 'banner_url' | 'animated_banner' | 'custom_status'
+        | 'display_name'
+        | 'about'
+        | 'avatar_url'
+        | 'animated_avatar'
+        | 'decoration_id'
+        | 'banner_url'
+        | 'animated_banner'
+        | 'custom_status'
+        | 'accent_color'
       >
     >,
   ) => Promise<void>;
@@ -56,9 +65,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, [loadProfile]);
 
-  // The decoration catalog needs a signed-in user, so it loads once a session exists.
+  // The decoration catalog and custom emojis need a signed-in user, so they load once a session exists.
   useEffect(() => {
-    if (session) void loadDecorations();
+    if (session) {
+      void loadDecorations();
+      void loadEmojis();
+    }
   }, [session]);
 
   // Keep the profile row in sync when another device or tab changes it.

@@ -1,11 +1,12 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { supabase } from '../lib/supabase';
 import { PERM, PERM_LABELS, hasPerm } from '../lib/permissions';
+import { loadEmojis, useEmojis, type CustomEmoji } from '../lib/emojis';
 import type { Role } from '../lib/types';
 import type { ServerData } from '../lib/useServer';
 import { Button, ErrorText, Field, inputClass } from './ui';
 
-type Tab = 'overview' | 'roles' | 'members';
+type Tab = 'overview' | 'roles' | 'emojis' | 'members';
 
 interface Props {
   data: ServerData;
@@ -30,6 +31,7 @@ export default function ServerSettings({ data, userId, onClose, onLeftOrDeleted 
   const tabs: { id: Tab; label: string; show: boolean }[] = [
     { id: 'overview', label: 'Overview', show: canManageServer },
     { id: 'roles', label: 'Roles', show: canRoles },
+    { id: 'emojis', label: 'Emojis', show: canManageServer },
     { id: 'members', label: 'Members', show: true },
   ];
   const visible = tabs.filter((t) => t.show);
@@ -56,6 +58,7 @@ export default function ServerSettings({ data, userId, onClose, onLeftOrDeleted 
         <div className="mx-auto max-w-3xl">
           {current === 'overview' && <OverviewTab data={data} onDeleted={onLeftOrDeleted} />}
           {current === 'roles' && <RolesTab data={data} />}
+          {current === 'emojis' && <EmojisTab serverId={data.server.id} userId={userId} />}
           {current === 'members' && <MembersTab data={data} userId={userId} />}
         </div>
       </div>
@@ -325,6 +328,166 @@ function MembersTab({ data, userId }: { data: ServerData; userId: string }) {
           );
         })}
       </ul>
+    </Section>
+  );
+}
+
+// Keep in step with the database: the server_emoji_limit trigger and the emojis bucket limit.
+const EMOJI_MAX = 50;
+const EMOJI_MAX_BYTES = 512 * 1024;
+const EMOJI_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'];
+
+function errorText(e: unknown, fallback: string): string {
+  if (e instanceof Error) return e.message;
+  if (e && typeof e === 'object' && 'message' in e && typeof (e as { message: unknown }).message === 'string') {
+    return (e as { message: string }).message;
+  }
+  return fallback;
+}
+
+function EmojisTab({ serverId, userId }: { serverId: string; userId: string }) {
+  const all = useEmojis();
+  const mine: CustomEmoji[] = all.filter((e) => e.server_id === serverId);
+  const [name, setName] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    void loadEmojis();
+  }, []);
+
+  const upload = async (file: File) => {
+    const clean = name.trim().toLowerCase();
+    setError(null);
+    setSaved(false);
+    if (!/^[a-z0-9_]{2,32}$/.test(clean)) {
+      setError('Name the emoji first, using 2–32 lowercase letters, numbers or underscores.');
+      return;
+    }
+    if (mine.some((e) => e.name === clean)) {
+      setError(`:${clean}: already exists on this server.`);
+      return;
+    }
+    if (mine.length >= EMOJI_MAX) {
+      setError(`This server already has ${EMOJI_MAX} emojis.`);
+      return;
+    }
+    if (!EMOJI_TYPES.includes(file.type)) {
+      setError('Use a PNG, JPEG, GIF or WebP image.');
+      return;
+    }
+    if (file.size > EMOJI_MAX_BYTES) {
+      setError('Emojis must be 512 KB or smaller.');
+      return;
+    }
+
+    setBusy(true);
+    const ext = file.name.split('.').pop()?.toLowerCase() ?? 'png';
+    const path = `${serverId}/${clean}-${Date.now()}.${ext}`;
+    try {
+      const { error: upErr } = await supabase.storage.from('emojis').upload(path, file, { contentType: file.type });
+      if (upErr) throw upErr;
+      const { data: pub } = supabase.storage.from('emojis').getPublicUrl(path);
+      const { error: insErr } = await supabase.from('server_emojis').insert({
+        server_id: serverId,
+        name: clean,
+        asset_url: pub.publicUrl,
+        animated: file.type === 'image/gif',
+        created_by: userId,
+      });
+      if (insErr) {
+        // The row was refused, so remove the image that was just uploaded.
+        await supabase.storage.from('emojis').remove([path]);
+        throw insErr;
+      }
+      setName('');
+      setSaved(true);
+      window.setTimeout(() => setSaved(false), 1500);
+    } catch (e) {
+      setError(errorText(e, 'Could not add the emoji.'));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const remove = async (e: CustomEmoji) => {
+    if (!window.confirm(`Delete :${e.name}:? Messages that use it will show the name as text.`)) return;
+    setError(null);
+    const { error: delErr } = await supabase.from('server_emojis').delete().eq('id', e.id);
+    if (delErr) {
+      setError(delErr.message);
+      return;
+    }
+    // The image path sits after the bucket name in the public URL.
+    const marker = '/object/public/emojis/';
+    const at = e.asset_url.indexOf(marker);
+    if (at !== -1) {
+      await supabase.storage.from('emojis').remove([decodeURIComponent(e.asset_url.slice(at + marker.length))]);
+    }
+  };
+
+  const full = mine.length >= EMOJI_MAX;
+
+  return (
+    <Section title="Server emojis">
+      <p className="mb-4 text-sm text-vulo-muted">
+        Members of this server can use these by typing :name: or by picking them from the emoji menu. {mine.length} of {EMOJI_MAX} used.
+      </p>
+      <ErrorText>{error}</ErrorText>
+      {saved && <p className="mb-3 rounded bg-vulo-green/10 px-3 py-2 text-sm text-vulo-green">Emoji added.</p>}
+
+      <div className="mb-6 rounded bg-vulo-side p-5">
+        <Field label="Name" hint="Used as :name:. 2–32 lowercase letters, numbers or underscores.">
+          <input
+            className={inputClass}
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            maxLength={32}
+            placeholder="party_parrot"
+            aria-label="Emoji name"
+          />
+        </Field>
+        <label
+          className={`inline-block cursor-pointer rounded bg-vulo-accent px-3 py-2 text-sm font-medium text-white hover:bg-vulo-accentHover ${
+            busy || full ? 'pointer-events-none opacity-50' : ''
+          }`}
+        >
+          {busy ? 'Uploading…' : 'Upload emoji'}
+          <input
+            type="file"
+            accept="image/png,image/jpeg,image/gif,image/webp"
+            className="hidden"
+            disabled={busy || full}
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) void upload(f);
+              e.target.value = '';
+            }}
+          />
+        </label>
+        <p className="mt-2 text-xs text-vulo-muted">PNG, JPEG, GIF or WebP, up to 512 KB. Animated GIFs play in messages.</p>
+      </div>
+
+      <p className="mb-3 text-xs font-bold uppercase tracking-wide text-vulo-muted">Emojis — {mine.length}</p>
+      {mine.length === 0 ? (
+        <p className="text-sm text-vulo-muted">No emojis yet.</p>
+      ) : (
+        <ul className="divide-y divide-vulo-line rounded bg-vulo-side">
+          {mine.map((e) => (
+            <li key={e.id} className="flex items-center gap-4 px-4 py-3">
+              <img src={e.asset_url} alt="" loading="lazy" className="h-10 w-10 object-contain" />
+              <div className="min-w-0 flex-1">
+                <p className="font-medium text-vulo-bright">:{e.name}:</p>
+                <p className="text-xs text-vulo-muted">{e.animated ? 'Animated' : 'Static'}</p>
+              </div>
+              <Button variant="danger" className="py-1.5" onClick={() => void remove(e)}>
+                Delete
+              </Button>
+            </li>
+          ))}
+        </ul>
+      )}
     </Section>
   );
 }

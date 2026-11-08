@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { bannerBackground } from '../lib/banner';
 import { useProfileBadges } from '../lib/badges';
 import type { Profile, UserStatus } from '../lib/types';
 import Markdown from './Markdown';
@@ -37,7 +38,7 @@ export default function ProfileCard({ profile, onClose }: { profile: Profile; on
         className="w-full max-w-[340px] overflow-hidden rounded-lg bg-vulo-rail shadow-2xl"
       >
         {/* Banner: the uploaded image, or a plain gradient when none is set. GIF banners play as they load. */}
-        <div className="h-28 w-full bg-gradient-to-br from-[#7c5cff] to-[#00a8fc]">
+        <div className="h-28 w-full" style={{ background: bannerBackground(profile.accent_color) }}>
           {profile.banner_url && <img src={profile.banner_url} alt="" className="h-full w-full object-cover" />}
         </div>
 

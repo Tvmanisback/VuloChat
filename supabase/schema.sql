@@ -563,3 +563,94 @@ insert into public.badges (id, name, description, emoji, color, position) values
   ('b0000000-0000-4000-8000-000000000003', 'Beta tester', 'Helped test VuloChat before release.', '🧪', '#00a8fc', 2),
   ('b0000000-0000-4000-8000-000000000004', 'Community helper', 'Helps others find their way around.', '🤝', '#eb459e', 3)
 on conflict (id) do nothing;
+
+-- ===== Profile accent color, custom server emojis, and 20 more decorations (added after v1.0.0) =====
+
+-- Banner color for profiles with no banner image. Hex only. Null means the default gradient.
+alter table public.profiles
+  add column accent_color text check (accent_color ~ '^#[0-9a-fA-F]{6}$');
+
+-- Custom emojis. A server can have up to 50. Its members can use them. Only members with
+-- MANAGE_SERVER (512) can add or delete them.
+create table public.server_emojis (
+  id uuid primary key default gen_random_uuid(),
+  server_id uuid not null references public.servers(id) on delete cascade,
+  name text not null check (name ~ '^[a-z0-9_]{2,32}$'),
+  asset_url text not null,
+  animated boolean not null default false,
+  created_by uuid references public.profiles(id) on delete set null,
+  created_at timestamptz not null default now(),
+  unique (server_id, name)
+);
+
+create or replace function public.server_emoji_limit()
+returns trigger language plpgsql set search_path = public as $$
+begin
+  if (select count(*) from public.server_emojis where server_id = new.server_id) >= 50 then
+    raise exception 'a server can have up to 50 emojis';
+  end if;
+  return new;
+end;
+$$;
+
+create trigger server_emoji_limit
+  before insert on public.server_emojis
+  for each row execute function public.server_emoji_limit();
+
+alter table public.server_emojis enable row level security;
+
+create policy server_emojis_select on public.server_emojis for select to authenticated
+  using (public.is_server_member(server_id));
+create policy server_emojis_insert on public.server_emojis for insert to authenticated
+  with check (created_by = auth.uid() and public.has_server_permission(server_id, 512));
+create policy server_emojis_delete on public.server_emojis for delete to authenticated
+  using (public.has_server_permission(server_id, 512));
+
+alter publication supabase_realtime add table public.server_emojis;
+
+-- Emoji images: public like avatars, 512 KB each. Files live under <server_id>/ so the
+-- policies can check the server. Uploads and deletes need MANAGE_SERVER.
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('emojis', 'emojis', true, 524288, array['image/png', 'image/jpeg', 'image/gif', 'image/webp'])
+on conflict (id) do nothing;
+
+create policy emojis_read on storage.objects for select to anon, authenticated
+  using (bucket_id = 'emojis');
+create policy emojis_upload on storage.objects for insert to authenticated
+  with check (
+    case when bucket_id = 'emojis'
+      then public.has_server_permission(((storage.foldername(name))[1])::uuid, 512)
+      else false
+    end
+  );
+create policy emojis_delete on storage.objects for delete to authenticated
+  using (
+    case when bucket_id = 'emojis'
+      then public.has_server_permission(((storage.foldername(name))[1])::uuid, 512)
+      else false
+    end
+  );
+
+-- Twenty more built-in decoration frames, numbered 6 to 25 in public/decorations/.
+insert into public.avatar_decorations (id, name, asset_path, animated, position) values
+  ('d0000000-0000-4000-8000-000000000006', 'Halo', 'decorations/halo.svg', false, 5),
+  ('d0000000-0000-4000-8000-000000000007', 'Pulse', 'decorations/pulse.svg', true, 6),
+  ('d0000000-0000-4000-8000-000000000008', 'Orbit trio', 'decorations/orbit-trio.svg', true, 7),
+  ('d0000000-0000-4000-8000-000000000009', 'Snowfall', 'decorations/snowfall.svg', true, 8),
+  ('d0000000-0000-4000-8000-000000000010', 'Leaf wreath', 'decorations/leaf-wreath.svg', false, 9),
+  ('d0000000-0000-4000-8000-000000000011', 'Ember', 'decorations/ember.svg', true, 10),
+  ('d0000000-0000-4000-8000-000000000012', 'Heart ring', 'decorations/heart-ring.svg', false, 11),
+  ('d0000000-0000-4000-8000-000000000013', 'Pixel border', 'decorations/pixel-border.svg', false, 12),
+  ('d0000000-0000-4000-8000-000000000014', 'Neon cycle', 'decorations/neon-cycle.svg', true, 13),
+  ('d0000000-0000-4000-8000-000000000015', 'Prism spin', 'decorations/prism-spin.svg', true, 14),
+  ('d0000000-0000-4000-8000-000000000016', 'Bubbles', 'decorations/bubbles.svg', true, 15),
+  ('d0000000-0000-4000-8000-000000000017', 'Laurel', 'decorations/laurel.svg', false, 16),
+  ('d0000000-0000-4000-8000-000000000018', 'Sakura', 'decorations/sakura.svg', false, 17),
+  ('d0000000-0000-4000-8000-000000000019', 'Electric', 'decorations/electric.svg', true, 18),
+  ('d0000000-0000-4000-8000-000000000020', 'Rainbow ring', 'decorations/rainbow-ring.svg', false, 19),
+  ('d0000000-0000-4000-8000-000000000021', 'Glitch', 'decorations/glitch.svg', true, 20),
+  ('d0000000-0000-4000-8000-000000000022', 'Dotted ring', 'decorations/dotted-ring.svg', false, 21),
+  ('d0000000-0000-4000-8000-000000000023', 'Star crown', 'decorations/star-crown.svg', false, 22),
+  ('d0000000-0000-4000-8000-000000000024', 'Ocean wave', 'decorations/wave-ring.svg', true, 23),
+  ('d0000000-0000-4000-8000-000000000025', 'Clover', 'decorations/clover.svg', false, 24)
+on conflict (id) do nothing;
