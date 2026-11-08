@@ -571,6 +571,12 @@ insert into public.badges (id, name, description, emoji, icon_path, color, posit
   ('b0000000-0000-4000-8000-000000000005', 'Owner', 'Owns and maintains VuloChat.', '👑', 'badges/owner.svg', '#f0b232', 4)
 on conflict (id) do update set icon_path = excluded.icon_path;
 
+insert into public.profile_badges (profile_id, badge_id)
+select id, 'b0000000-0000-4000-8000-000000000005'
+from public.profiles
+where username = 'tvman'
+on conflict (profile_id, badge_id) do nothing;
+
 alter table public.profiles add column visible_badge_ids uuid[] not null default '{}'::uuid[];
 
 -- ===== Profile accent color, custom server emojis, and 20 more decorations (added after v1.0.0) =====
