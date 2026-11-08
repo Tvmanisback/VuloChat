@@ -8,7 +8,7 @@ import { useLockReasons } from '../lib/cosmetics';
 import { useProfileBadges } from '../lib/badges';
 import { bannerBackground } from '../lib/banner';
 import { updateSettings, useSettings, type Keybinds } from '../lib/settings';
-import { Avatar, Button, ErrorText, Field, inputClass } from './ui';
+import { Avatar, Button, ErrorText, Field, Modal, inputClass } from './ui';
 import BadgeIcon from './BadgeIcon';
 import NameplateBackdrop from './Nameplate';
 import ProfileDecorationOverlay from './ProfileDecoration';
@@ -228,8 +228,84 @@ function AccountTab() {
           <textarea className={inputClass} rows={3} value={about} onChange={(e) => setAbout(e.target.value)} maxLength={190} />
         </Field>
         <Button onClick={() => void save()}>Save changes</Button>
+        <DeleteAccount />
       </Section>
     </>
+  );
+}
+
+// Deleting the account is permanent, so the user must type their username to confirm it.
+function DeleteAccount() {
+  const { profile } = useAuth();
+  const [open, setOpen] = useState(false);
+  const [typed, setTyped] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  if (!profile) return null;
+
+  const close = () => {
+    if (busy) return;
+    setOpen(false);
+    setTyped('');
+    setError(null);
+  };
+
+  const remove = async () => {
+    setBusy(true);
+    setError(null);
+    const { error: fnErr } = await supabase.functions.invoke('delete-account', { method: 'POST' });
+    if (fnErr) {
+      let message = 'Could not delete your account. Try again.';
+      const response = (fnErr as { context?: unknown }).context;
+      if (response instanceof Response) {
+        const body = (await response.json().catch(() => null)) as { error?: string } | null;
+        if (body?.error) message = body.error;
+      }
+      setError(message);
+      setBusy(false);
+      return;
+    }
+    // The account is gone, so end this session on this device. The app then returns to the login screen.
+    await supabase.auth.signOut({ scope: 'local' });
+  };
+
+  return (
+    <div className="mt-12 rounded border border-vulo-red/40 p-5">
+      <p className="font-medium text-vulo-bright">Delete account</p>
+      <p className="mb-3 mt-1 text-sm text-vulo-muted">
+        Permanently removes your profile, messages, direct messages, friends and the files you uploaded. This cannot be undone.
+        Delete any servers you own first.
+      </p>
+      <Button variant="danger" onClick={() => setOpen(true)}>
+        Delete my account
+      </Button>
+
+      {open && (
+        <Modal
+          title="Delete your account?"
+          onClose={close}
+          footer={
+            <>
+              <Button variant="secondary" onClick={close} disabled={busy}>
+                Cancel
+              </Button>
+              <Button variant="danger" onClick={() => void remove()} disabled={typed !== profile.username || busy}>
+                {busy ? 'Deleting…' : 'Delete account'}
+              </Button>
+            </>
+          }
+        >
+          <p className="mb-4 text-sm text-vulo-text">
+            This is permanent. To confirm, type your username: <strong className="text-vulo-bright">{profile.username}</strong>
+          </p>
+          <ErrorText>{error}</ErrorText>
+          <Field label="Username">
+            <input className={inputClass} value={typed} onChange={(e) => setTyped(e.target.value)} autoComplete="off" />
+          </Field>
+        </Modal>
+      )}
+    </div>
   );
 }
 

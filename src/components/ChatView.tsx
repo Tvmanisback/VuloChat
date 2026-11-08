@@ -16,6 +16,7 @@ import { playCue } from '../lib/sounds';
 import type { Attachment, Channel, Embed, MemberRow, Message, Profile } from '../lib/types';
 import Composer from './Composer';
 import ForwardDialog from './ForwardDialog';
+import ReportDialog, { type ReportTarget } from './ReportDialog';
 import Markdown from './Markdown';
 import { Icon } from './icons';
 import { Avatar } from './ui';
@@ -52,6 +53,7 @@ export default function ChatView({ channel, userId, perms, members, myDisplayNam
   const [editing, setEditing] = useState<{ id: string; text: string } | null>(null);
   const [replyTo, setReplyTo] = useState<Message | null>(null);
   const [forwarding, setForwarding] = useState<Message | null>(null);
+  const [reporting, setReporting] = useState<ReportTarget | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const stickToBottom = useRef(true);
 
@@ -501,6 +503,25 @@ export default function ChatView({ channel, userId, perms, members, myDisplayNam
               Edit message
             </button>
           )}
+          {menu.msg.author_id !== userId && (
+            <button
+              role="menuitem"
+              className="block w-full rounded px-2 py-1.5 text-left text-vulo-text hover:bg-vulo-accent hover:text-white"
+              onClick={() => {
+                setReporting({
+                  type: 'message',
+                  id: menu.msg.id,
+                  userId: menu.msg.author_id,
+                  serverId: channel.server_id,
+                  snapshot: menu.msg.content || null,
+                  what: 'message',
+                });
+                setMenu(null);
+              }}
+            >
+              Report message
+            </button>
+          )}
           {(menu.msg.author_id === userId || canModerate) && (
             <button
               role="menuitem"
@@ -518,6 +539,7 @@ export default function ChatView({ channel, userId, perms, members, myDisplayNam
       )}
 
       {forwarding && <ForwardDialog message={forwarding} userId={userId} onClose={() => setForwarding(null)} />}
+      {reporting && <ReportDialog target={reporting} onClose={() => setReporting(null)} />}
 
       {/* Accessibility: name of the current user for screen readers */}
       <span className="sr-only">Signed in as {myDisplayName}</span>

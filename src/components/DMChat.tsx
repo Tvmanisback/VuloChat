@@ -5,6 +5,7 @@ import Composer from './Composer';
 import Markdown from './Markdown';
 import { AttachmentList, EmbedList } from './ChatView';
 import { Avatar } from './ui';
+import ReportDialog, { type ReportTarget } from './ReportDialog';
 
 interface Props {
   userId: string;
@@ -20,6 +21,7 @@ export default function DMChat({ userId, friend }: Props) {
   const [loading, setLoading] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
   const stick = useRef(true);
+  const [reporting, setReporting] = useState<ReportTarget | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -124,7 +126,7 @@ export default function DMChat({ userId, friend }: Props) {
           const prev = messages[i - 1];
           const continuation = !!prev && prev.sender_id === m.sender_id;
           return (
-            <article key={m.id} className={`flex gap-4 px-4 hover:bg-[#2e3035] ${continuation ? 'py-[1px]' : 'mt-[17px] py-[2px]'}`}>
+            <article key={m.id} className={`relative flex gap-4 px-4 hover:bg-[#2e3035] ${continuation ? 'py-[1px]' : 'mt-[17px] py-[2px]'}`}>
               <div className="w-10 shrink-0">
                 {!continuation && <Avatar profile={mine ? null : friend} size="md" className="mt-0.5" />}
               </div>
@@ -146,12 +148,24 @@ export default function DMChat({ userId, friend }: Props) {
                 <AttachmentList items={m.attachments} />
                 <EmbedList items={m.embeds} />
               </div>
+              {!mine && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    setReporting({ type: 'direct_message', id: m.id, userId: m.sender_id, serverId: null, snapshot: m.content || null, what: 'message' })
+                  }
+                  className="absolute right-4 top-1 rounded px-2 py-0.5 text-xs text-vulo-muted opacity-60 hover:text-vulo-red hover:opacity-100"
+                >
+                  Report
+                </button>
+              )}
             </article>
           );
         })}
       </div>
 
       <Composer userId={userId} placeholder={`Message @${friend.username}`} onSend={send} />
+      {reporting && <ReportDialog target={reporting} onClose={() => setReporting(null)} />}
     </section>
   );
 }

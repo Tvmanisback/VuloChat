@@ -106,19 +106,9 @@ function ExternalLink({ href, children }: { href: string; children: ReactNode })
   );
 }
 
-function Draft() {
-  return (
-    <p className="rounded bg-vulo-accent/10 px-4 py-3 text-sm">
-      This is a plain-language draft of the rules for this VuloChat site. It has not been reviewed by a lawyer.
-    </p>
-  );
-}
-
 function Terms() {
   return (
     <Page title="Terms of Service" updated={UPDATED}>
-      <Draft />
-
       <Clause title="1. About VuloChat">
         <p>
           VuloChat is a chat app with servers, channels, direct messages, voice channels and cosmetic decorations. Its code is open
@@ -130,14 +120,14 @@ function Terms() {
         <Bullets>
           <li>Usernames are 2 to 32 characters: lowercase letters, numbers, underscores and dots. They are fixed once you sign up.</li>
           <li>Passwords must be at least 8 characters. Keep yours private. You are responsible for anything done from your account.</li>
-          <li>Confirm your email when asked. You must be at least 13 years old, and old enough to agree to these terms where you live.</li>
+          <li>Confirm your email when asked. You must be at least 13 years old to use VuloChat.</li>
         </Bullets>
       </Clause>
 
       <Clause title="3. What you post">
         <p>
           You own what you post, and you are responsible for it. By posting, you let VuloChat store, process and show it to the people
-          you share it with, and run the automated checks in section 5.
+          you share it with, and run the automated checks in section 6.
         </p>
       </Clause>
 
@@ -153,21 +143,29 @@ function Terms() {
         </Bullets>
       </Clause>
 
-      <Clause title="5. Automated checks">
+      <Clause title="5. Reporting and moderation">
+        <p>
+          If you see content or behaviour that breaks these rules, use Report on the message, direct message or profile. Reports go to
+          the project owner, who reviews them. Server owners and people with the Manage Messages permission can also delete messages in
+          their servers. The project owner may remove content, and may restrict or end accounts that break these rules.
+        </p>
+      </Clause>
+
+      <Clause title="6. Automated checks">
         <p>
           Images you upload are checked by an automated service when the project owner has set one up. Messages also pass a check for
           blocked words. These checks make mistakes, so they cannot catch everything, and content can be removed after it is posted.
         </p>
       </Clause>
 
-      <Clause title="6. Servers">
+      <Clause title="7. Servers">
         <p>
-          Server owners and people with the right permissions manage a server's channels, roles, members, emojis and stickers. They
-          must follow these terms too. The project owner may remove content, and may restrict or end accounts that break these rules.
+          Server owners and people with the right permissions manage a server's channels, roles, members, emojis and stickers, and must
+          follow these terms too.
         </p>
       </Clause>
 
-      <Clause title="7. Decorations and badges">
+      <Clause title="8. Decorations and badges">
         <p>
           Avatar decorations, nameplates, profile card decorations and badges are cosmetic. This version of VuloChat sells nothing, so
           they have no cash value and cannot be bought, sold or transferred. Badges are granted at the project owner's discretion. Any
@@ -175,43 +173,49 @@ function Terms() {
         </p>
       </Clause>
 
-      <Clause title="8. Voice and video">
+      <Clause title="9. Voice and video">
         <p>
           Voice channels connect participants directly to each other, so people in a call can hear each other. VuloChat does not
           record calls.
         </p>
       </Clause>
 
-      <Clause title="9. Third-party services">
+      <Clause title="10. Third-party services">
         <p>
           VuloChat relies on Supabase (accounts, database, file storage and realtime), KLIPY (GIF search), Sightengine (image checks)
           and GitHub Pages (website hosting). Their own terms also apply to what they handle.
         </p>
       </Clause>
 
-      <Clause title="10. The service">
+      <Clause title="11. Deleting your account">
+        <p>
+          You can delete your account in Settings, under My Account. Deleting removes what the account created, as the Privacy Policy
+          describes. Deletion cannot be undone. You must delete any servers you own first.
+        </p>
+      </Clause>
+
+      <Clause title="12. The service">
         <p>
           VuloChat is provided as is. It may be unavailable at times, features may change or stop, and data can be lost. To the extent
           the law allows, the project owner is not liable for indirect losses.
         </p>
       </Clause>
 
-      <Clause title="11. Ending your use">
-        <p>You can stop using VuloChat at any time. The project owner can suspend or end access for breaking these terms.</p>
+      <Clause title="13. Ending your use">
+        <p>
+          You can stop using VuloChat at any time by deleting your account. The project owner can suspend or end access for breaking
+          these terms.
+        </p>
       </Clause>
 
-      <Clause title="12. Changes">
+      <Clause title="14. Changes">
         <p>
           These terms can change. The date at the top shows the latest version. Carrying on with VuloChat after a change means you accept
           it.
         </p>
       </Clause>
 
-      <Clause title="13. Which laws apply">
-        <p className="italic text-vulo-muted">[To be set by the operator of this site before these terms are relied on.]</p>
-      </Clause>
-
-      <Clause title="14. Contact">
+      <Clause title="15. Contact">
         <p>
           Questions about these terms: open an issue at <ExternalLink href={ISSUES_URL}>GitHub issues</ExternalLink>. Issues are
           public, so do not post personal information there.
@@ -224,8 +228,6 @@ function Terms() {
 function Privacy() {
   return (
     <Page title="Privacy Policy" updated={UPDATED}>
-      <Draft />
-
       <Clause title="What this covers">
         <p>This policy covers VuloChat on the website, the Windows app and the Android app.</p>
       </Clause>
@@ -246,6 +248,11 @@ function Privacy() {
             is shared in real time with the people in the same call. Audio is not stored.
           </li>
           <li>
+            <strong>Reports:</strong> when you report something, we keep who reported it, what was reported, the reason and any details
+            you add, and a copy of up to 2,000 characters of the reported text. The copy lets the owner review a report even after the
+            message is deleted. The person reported is not told who reported them.
+          </li>
+          <li>
             <strong>On your device:</strong> your settings, such as theme, keybinds and voice devices, are kept in your browser's local
             storage. They are not sent to us.
           </li>
@@ -258,8 +265,8 @@ function Privacy() {
 
       <Clause title="How it is used">
         <p>
-          To run VuloChat: show messages, connect calls, keep accounts secure, send login and confirmation emails, and enforce the
-          rules in the Terms of Service.
+          To run VuloChat: show messages, connect calls, keep accounts secure, send login and confirmation emails, handle reports, and
+          enforce the rules in the Terms of Service.
         </p>
       </Clause>
 
@@ -294,16 +301,21 @@ function Privacy() {
 
       <Clause title="How long we keep it">
         <p>
-          Data is kept while your account exists. This version has no button to delete your account. To ask for deletion or a copy of
-          your data, open an issue at <ExternalLink href={ISSUES_URL}>GitHub issues</ExternalLink>. Issues are public, so do not post
-          personal information there.
+          Your data is kept while your account exists. You can delete your account in Settings, under My Account. Deleting it removes
+          your profile, messages, direct messages, friendships, badges, server memberships, GIF favourites, and the files you uploaded to
+          messages and your profile. Reports you filed are removed. Reports other people filed about your content stay for review,
+          without a link to your account. Emojis and stickers you added to a server stay with that server, without a link to you.
+          Copies in the hosting provider's backups follow that provider's schedule.
+        </p>
+        <p>
+          Owners must delete their servers before deleting their account, because deleting a server removes everything in it.
         </p>
       </Clause>
 
       <Clause title="Your choices">
         <p>
-          You can edit your profile, leave servers and log out. In Settings you can turn off desktop notifications, decorations and link
-          previews.
+          You can edit your profile, leave servers, report content, delete your account and log out. In Settings you can turn off
+          desktop notifications, decorations and link previews.
         </p>
       </Clause>
 
@@ -417,7 +429,9 @@ const QUESTIONS: { q: string; a: ReactNode }[] = [
     q: 'How do I report someone?',
     a: (
       <p>
-        There is no report button yet. For serious problems, open an issue on GitHub. Issues are public, so do not post personal details.
+        Open a message's menu and choose Report message, or press Report next to a direct message. On a profile card, choose Report
+        user. Pick a reason and add details if you want. The project owner reviews reports, and the person reported is not told who
+        reported them.
       </p>
     ),
   },
@@ -455,9 +469,14 @@ const QUESTIONS: { q: string; a: ReactNode }[] = [
     q: 'How do I delete my account?',
     a: (
       <p>
-        There is no delete button yet. Open an issue on GitHub and ask. Issues are public, so do not post personal details there.
+        Open Settings, then My Account, and choose Delete my account. Type your username to confirm. This permanently removes your
+        profile, messages, direct messages and uploaded files. Delete any servers you own first. The Privacy Policy lists what stays.
       </p>
     ),
+  },
+  {
+    q: 'Can I undo deleting my account?',
+    a: <p>No. Deleting an account cannot be undone.</p>,
   },
   {
     q: 'Can I run my own copy?',

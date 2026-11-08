@@ -1028,3 +1028,31 @@ insert into public.profile_decorations (id, name, asset_path, animated, required
   ('e0000000-0000-4000-8000-000000000008', 'Crescent night', 'profile-decorations/crescent-night.svg', false, null, 7),
   ('e0000000-0000-4000-8000-000000000009', 'Beta tester', 'profile-decorations/beta-tester.svg', false, 'b0000000-0000-4000-8000-000000000003', 30)
 on conflict (id) do nothing;
+
+-- Reports: messages, direct messages and profiles flagged for review. The project owner reads this table.
+create table if not exists public.reports (
+  id uuid primary key default gen_random_uuid(),
+  reporter_id uuid not null references public.profiles(id) on delete cascade,
+  target_type text not null check (target_type in ('message', 'direct_message', 'profile')),
+  target_id uuid not null,
+  target_user_id uuid references public.profiles(id) on delete set null,
+  server_id uuid references public.servers(id) on delete set null,
+  reason text not null check (reason in ('harassment', 'hate', 'threat', 'sexual', 'spam', 'illegal', 'other')),
+  details text check (char_length(details) <= 500),
+  content_snapshot text check (char_length(content_snapshot) <= 2000),
+  created_at timestamptz not null default now(),
+  -- One report per person per item, so repeat clicks do not flood the table.
+  unique (reporter_id, target_type, target_id)
+);
+
+create index if not exists reports_created_idx on public.reports(created_at desc);
+
+alter table public.reports enable row level security;
+
+-- Anyone signed in can file a report as themselves, and can see the reports they filed.
+-- Nobody can edit or delete reports through the app.
+create policy reports_insert on public.reports
+  for insert to authenticated with check (reporter_id = auth.uid());
+
+create policy reports_select_own on public.reports
+  for select to authenticated using (reporter_id = auth.uid());

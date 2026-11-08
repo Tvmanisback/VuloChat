@@ -1,4 +1,5 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { useAuth } from '../lib/auth';
 import { bannerBackground } from '../lib/banner';
 import { useProfileBadges } from '../lib/badges';
 import type { Profile, UserStatus } from '../lib/types';
@@ -6,6 +7,7 @@ import BadgeIcon from './BadgeIcon';
 import Markdown from './Markdown';
 import NameplateBackdrop from './Nameplate';
 import ProfileDecorationOverlay from './ProfileDecoration';
+import ReportDialog from './ReportDialog';
 import { Avatar } from './ui';
 
 const STATUS_LABEL: Record<UserStatus, string> = {
@@ -19,6 +21,8 @@ export default function ProfileCard({ profile, onClose }: { profile: Profile; on
   const badges = useProfileBadges(profile.id);
   const name = profile.display_name || profile.username;
   const joined = new Date(profile.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+  const { session } = useAuth();
+  const [reporting, setReporting] = useState(false);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -78,6 +82,20 @@ export default function ProfileCard({ profile, onClose }: { profile: Profile; on
               )}
 
               <p className="mt-3 border-t border-vulo-line pt-3 text-xs text-vulo-muted">Member since {joined}</p>
+
+              {session && session.user.id !== profile.id && (
+                <>
+                  <button type="button" onClick={() => setReporting(true)} className="mt-2 block text-xs text-vulo-muted hover:text-vulo-red">
+                    Report user
+                  </button>
+                  {reporting && (
+                    <ReportDialog
+                      target={{ type: 'profile', id: profile.id, userId: profile.id, serverId: null, snapshot: null, what: 'profile' }}
+                      onClose={() => setReporting(false)}
+                    />
+                  )}
+                </>
+              )}
             </div>
           </div>
         </div>
