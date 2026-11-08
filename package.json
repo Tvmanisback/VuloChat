@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
+    "publish:web": "tsc --noEmit && vite build --outDir docs --emptyOutDir",
     "preview": "vite preview"
   },
   "dependencies": {

@@ -12,12 +12,13 @@ VuloChat/
 │   ├── components/          UI: shell, sidebars, chat, voice stage, settings, modals
 │   └── lib/                 Supabase client, auth, server data hook, WebRTC voice, settings
 ├── public/                  static files (favicon)
-├── index.html               website entry (root of the repo, as required for GitHub Pages)
+├── index.html               website entry (source; the published copy is in docs/)
 ├── package.json             website dependencies and scripts
 ├── Pc/                      Windows app (Electron): frameless window, tray, hotkeys, notifications
 ├── Android/                 Android app (Capacitor): drawer layout, back button, signed APK
 ├── supabase/schema.sql      complete database: tables, RLS policies, RPCs, realtime, storage
-└── .github/workflows/build.yml   CI: build website, deploy Pages, build .exe and .apk, release
+├── docs/                    built website, published by GitHub Pages (npm run publish:web)
+└── .github/workflows/build.yml   CI: build the .exe and .apk, attach them to releases
 ```
 
 ## Setting up
@@ -36,7 +37,11 @@ npm run dev
 
 ### 3. GitHub Pages
 
-Settings → Pages → Source: **GitHub Actions**. Each push to `main` builds and deploys the site.
+The site is published from the `docs/` folder on `main`:
+
+1. Settings → Pages → Source: **Deploy from a branch**. Branch: `main`, folder: `/docs`.
+2. Build the site into `docs/`: `npm run publish:web`.
+3. Commit and push `docs/`. GitHub Pages publishes the new version.
 
 ### 4. Desktop and Android builds
 
