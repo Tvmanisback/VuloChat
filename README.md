@@ -92,6 +92,16 @@ The GIF button uses [KLIPY](https://partner.klipy.com). The browser never sees t
 
 The response parsing in `index.ts` was written from KLIPY's public documentation. It hasn't been checked against a live response, so the first test with a real key is the real check. KLIPY asks apps to credit it, and the picker shows **Powered by KLIPY** for that reason.
 
+### 6. Set up image checking (Sightengine)
+
+Images are checked for explicit nudity before they upload, by the `moderate-image` Edge Function (`supabase/functions/moderate-image`). It uses [Sightengine](https://sightengine.com) and is set up the same way as KLIPY:
+
+1. Sign up at [sightengine.com](https://sightengine.com) and copy your API user and secret.
+2. Add two secrets in **Edge Functions → Secrets**: `SIGHTENGINE_USER` and `SIGHTENGINE_SECRET`.
+3. Until both secrets are set, images are allowed without a check, and the function says so. Once they are set, an image is refused when its explicit score reaches 0.6. If the check itself fails, the image is refused, so nothing gets through unchecked silently.
+
+Text is checked separately, against the blocked-word list in the database.
+
 ## Repository layout
 
 ```
@@ -105,6 +115,7 @@ VuloChat/
 ├── Android/                      Android app (Capacitor)
 ├── supabase/schema.sql           database: tables, policies, functions, realtime, storage
 ├── supabase/functions/klipy/     GIF search (Supabase Edge Function)
+├── supabase/functions/moderate-image/  image check before upload (Supabase Edge Function)
 └── .github/workflows/
     ├── pages.yml                 publishes the website to GitHub Pages
     └── build.yml                 builds the .exe and .apk, attaches them to releases
@@ -122,6 +133,8 @@ VuloChat/
 - **Decorations:** the 25 built-in frames are available now. Uploading your own decoration is coming soon.
 - **GIFs:** the GIF button works only after a KLIPY key is set (see step 5).
 - **Anti-raid:** each person can send 8 messages in 10 seconds, and joins pause when 10 people join the same server within a minute.
-- **Word filter:** messages and DMs are checked against a list of blocked words that the project owner manages. Only whole words are matched, so misspellings and symbol swaps are not caught. Images are not scanned yet.
+- **Word filter:** messages and DMs are checked against a list of blocked words that the project owner manages. Only whole words are matched, so misspellings and symbol swaps are not caught.
+- **Image check:** uploads are scanned for explicit nudity only after the Sightengine secrets are set (see step 6). Until then they are allowed without a check. Violence and other content are not scanned.
+- **Mobile:** on phones, Enter starts a new line, and holding a message or tapping its three dots opens the message actions as a sheet at the bottom of the screen.
 - **Replies and forwards** work in server channels only, not yet in direct messages.
 - **Themes:** the theme is saved on each device. A few small colors, such as the message hover, stay fixed.

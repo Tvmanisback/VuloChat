@@ -1,6 +1,15 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type MouseEvent as ReactMouseEvent,
+  type PointerEvent as ReactPointerEvent,
+} from 'react';
 import { supabase } from '../lib/supabase';
 import { attachmentUrl, formatBytes } from '../lib/attachments';
+import { useDevice } from '../lib/device';
 import { hasPerm, PERM } from '../lib/permissions';
 import { getSettings, useSettings } from '../lib/settings';
 import { playCue } from '../lib/sounds';
@@ -33,6 +42,9 @@ function formatTime(iso: string) {
 
 export default function ChatView({ channel, userId, perms, members, myDisplayName, onOpenProfile }: Props) {
   const settings = useSettings();
+  const device = useDevice();
+  const pressTimer = useRef<number | null>(null);
+  const pressStart = useRef<{ x: number; y: number } | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
   const [hasMore, setHasMore] = useState(false);
@@ -178,10 +190,43 @@ export default function ChatView({ channel, userId, perms, members, myDisplayNam
     };
   }, [menu]);
 
+  // Opens the message actions at a point on screen. Right-click, the three dots and long-press all use this.
+  const openMenuAt = (x: number, y: number, msg: Message) => {
+    setMenu({ x: Math.min(x, window.innerWidth - 200), y: Math.min(y, window.innerHeight - 260), msg });
+  };
+
   const openMenu = (e: ReactMouseEvent, msg: Message) => {
     e.preventDefault();
-    setMenu({ x: Math.min(e.clientX, window.innerWidth - 200), y: Math.min(e.clientY, window.innerHeight - 220), msg });
+    openMenuAt(e.clientX, e.clientY, msg);
   };
+
+  const cancelPress = () => {
+    if (pressTimer.current !== null) window.clearTimeout(pressTimer.current);
+    pressTimer.current = null;
+    pressStart.current = null;
+  };
+
+  // Touch: holding a message for half a second opens its actions. A finger that moves cancels it.
+  const onPressStart = (e: ReactPointerEvent, msg: Message) => {
+    if (e.pointerType === 'mouse') return;
+    const x = e.clientX;
+    const y = e.clientY;
+    cancelPress();
+    pressStart.current = { x, y };
+    pressTimer.current = window.setTimeout(() => {
+      pressTimer.current = null;
+      pressStart.current = null;
+      navigator.vibrate?.(10);
+      openMenuAt(x, y, msg);
+    }, 500);
+  };
+
+  const onPressMove = (e: ReactPointerEvent) => {
+    const start = pressStart.current;
+    if (start && Math.hypot(e.clientX - start.x, e.clientY - start.y) > 10) cancelPress();
+  };
+
+  useEffect(() => cancelPress, []);
 
   // Group consecutive messages from the same author so the feed reads like Discord.
   const rendered = messages.map((m, i) => {
@@ -239,6 +284,10 @@ export default function ChatView({ channel, userId, perms, members, myDisplayNam
               key={m.id}
               className={`group relative flex gap-4 px-4 hover:bg-[#2e3035] ${continuation ? 'py-[1px]' : settings.compact ? 'mt-1 py-[1px]' : 'mt-[17px] py-[2px]'}`}
               onContextMenu={(e) => openMenu(e, m)}
+              onPointerDown={(e) => onPressStart(e, m)}
+              onPointerMove={onPressMove}
+              onPointerUp={cancelPress}
+              onPointerCancel={cancelPress}
             >
               <div className="w-10 shrink-0">
                 {!continuation ? (
@@ -348,6 +397,20 @@ export default function ChatView({ channel, userId, perms, members, myDisplayNam
                   >
                     <Icon name="forward" className="h-4 w-4" />
                   </button>
+                  <button
+                    onClick={(e) => {
+                      // Stop the click here, so the menu's own close-on-click does not dismiss it straight away.
+                      e.stopPropagation();
+                      const r = e.currentTarget.getBoundingClientRect();
+                      openMenuAt(r.right - 192, r.bottom + 4, m);
+                    }}
+                    className="rounded p-1 text-vulo-muted hover:text-vulo-text"
+                    aria-label="More message actions"
+                    aria-haspopup="menu"
+                    title="More actions"
+                  >
+                    <Icon name="more" className="h-4 w-4" />
+                  </button>
                   {m.author_id === userId && (
                     <button
                       onClick={() => setEditing({ id: m.id, text: m.content })}
@@ -380,10 +443,18 @@ export default function ChatView({ channel, userId, perms, members, myDisplayNam
       />
 
       {menu && (
+        <>
+        {device === 'mobile' && (
+          <div className="fixed inset-0 z-40 bg-black/50" onClick={() => setMenu(null)} aria-hidden="true" />
+        )}
         <div
           role="menu"
-          className="fixed z-50 w-48 rounded bg-vulo-rail p-1.5 text-sm shadow-2xl"
-          style={{ left: menu.x, top: menu.y }}
+          className={
+            device === 'mobile'
+              ? 'fixed inset-x-0 bottom-0 z-50 rounded-t-2xl bg-vulo-rail p-2 pb-6 text-base shadow-2xl'
+              : 'fixed z-50 w-48 rounded bg-vulo-rail p-1.5 text-sm shadow-2xl'
+          }
+          style={device === 'mobile' ? undefined : { left: menu.x, top: menu.y }}
           onClick={(e) => e.stopPropagation()}
         >
           <button
@@ -443,6 +514,7 @@ export default function ChatView({ channel, userId, perms, members, myDisplayNam
             </button>
           )}
         </div>
+        </>
       )}
 
       {forwarding && <ForwardDialog message={forwarding} userId={userId} onClose={() => setForwarding(null)} />}

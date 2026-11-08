@@ -78,6 +78,13 @@ const PATHS: Record<string, ReactNode> = {
   trash: <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" />,
   pencil: <path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" />,
   message: <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />,
+  more: (
+    <>
+      <circle cx="5" cy="12" r="1.5" />
+      <circle cx="12" cy="12" r="1.5" />
+      <circle cx="19" cy="12" r="1.5" />
+    </>
+  ),
   reply: (
     <>
       <path d="M9 14 4 9l5-5" />

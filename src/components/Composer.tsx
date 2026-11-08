@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { extractEmbeds, formatBytes, MAX_ATTACHMENT_BYTES, uploadAttachment } from '../lib/attachments';
 import { useEmojis } from '../lib/emojis';
+import { useDevice } from '../lib/device';
+import { checkImage } from '../lib/moderation';
 import type { Attachment, Embed } from '../lib/types';
 import GifPicker from './GifPicker';
 import { Icon } from './icons';
@@ -52,6 +54,8 @@ export default function Composer({
   const fileRef = useRef<HTMLInputElement>(null);
   const pickerRef = useRef<HTMLDivElement>(null);
   const customEmojis = useEmojis();
+  // On phones, Enter starts a new line and the send button sends, as on most phone keyboards.
+  const mobile = useDevice() === 'mobile';
 
   // While the picker is open, Escape or a click outside it closes it.
   useEffect(() => {
@@ -78,7 +82,14 @@ export default function Composer({
     setBusy(true);
     setError(null);
     try {
-      const uploaded = await Promise.all(files.map((f) => uploadAttachment(userId, f)));
+      // Images are checked for explicit content before they are uploaded.
+      const uploaded = await Promise.all(
+        files.map(async (f) => {
+          const verdict = await checkImage(f);
+          if (!verdict.allowed) throw new Error(verdict.reason ?? `${f.name} was blocked.`);
+          return uploadAttachment(userId, f);
+        }),
+      );
       await onSend(content, uploaded, extractEmbeds(content));
       setText('');
       setFiles([]);
@@ -109,7 +120,7 @@ export default function Composer({
   };
 
   const onKeyDown = (e: ReactKeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === 'Enter' && !e.shiftKey && !mobile) {
       e.preventDefault();
       void submit();
     }
