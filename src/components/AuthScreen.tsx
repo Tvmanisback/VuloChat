@@ -22,7 +22,7 @@ export default function AuthScreen() {
         await signIn(email.trim(), password);
       } else {
         await signUp(email.trim(), password, username);
-        setNotice('Account created. If email confirmation is on, check your inbox, then log in.');
+        setNotice('Account created. Check your inbox for a confirmation link, then log in.');
         setMode('login');
       }
     } catch (err) {

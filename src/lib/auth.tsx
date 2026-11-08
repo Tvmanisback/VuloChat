@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from './supabase';
+import { CONFIRM_URL } from './site';
 import type { Profile, UserStatus } from './types';
 
 interface AuthState {
@@ -73,7 +74,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { error } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { username: clean, display_name: username.trim() } },
+      options: {
+        data: { username: clean, display_name: username.trim() },
+        emailRedirectTo: CONFIRM_URL,
+      },
     });
     if (error) throw error;
   };
