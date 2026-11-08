@@ -1,4 +1,4 @@
-import { useRef, useState, type KeyboardEvent } from 'react';
+import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { extractEmbeds, formatBytes, MAX_ATTACHMENT_BYTES, uploadAttachment } from '../lib/attachments';
 import { useEmojis } from '../lib/emojis';
 import type { Attachment, Embed } from '../lib/types';
@@ -10,6 +10,8 @@ const EMOJIS = [
   '🔥', '✨', '🎉', '💯', '❤️', '💜', '🤝', '👀', '🫡', '😴', '🤯', '🥳',
   '🎮', '🎧', '🚀', '🍕', '☕', '🌙', '⚡', '✅', '❌', '⚠️', '💡', '🙌',
 ];
+
+type PickerTab = 'emoji' | 'gif';
 
 interface Props {
   userId: string;
@@ -24,12 +26,29 @@ export default function Composer({ userId, placeholder, disabled, disabledReason
   const [text, setText] = useState('');
   const [files, setFiles] = useState<File[]>([]);
   const [busy, setBusy] = useState(false);
-  const [emojiOpen, setEmojiOpen] = useState(false);
-  const [gifOpen, setGifOpen] = useState(false);
+  const [picker, setPicker] = useState<PickerTab | null>(null);
   const [error, setError] = useState<string | null>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const pickerRef = useRef<HTMLDivElement>(null);
   const customEmojis = useEmojis();
+
+  // While the picker is open, Escape or a click outside it closes it.
+  useEffect(() => {
+    if (!picker) return;
+    const onDown = (e: MouseEvent) => {
+      if (!pickerRef.current?.contains(e.target as Node)) setPicker(null);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setPicker(null);
+    };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [picker]);
 
   const canSend = !disabled && !busy && (text.trim().length > 0 || files.length > 0);
 
@@ -53,6 +72,7 @@ export default function Composer({ userId, placeholder, disabled, disabledReason
 
   // A GIF is sent as a Markdown image, so it is stored as the message text and shows inline.
   const sendGif = async (url: string) => {
+    setPicker(null);
     if (disabled || busy) return;
     // Parentheses and spaces would end the Markdown image early, so they are percent-encoded.
     // encodeURIComponent leaves ( ) alone, so they are replaced by hand.
@@ -68,7 +88,7 @@ export default function Composer({ userId, placeholder, disabled, disabledReason
     }
   };
 
-  const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+  const onKeyDown = (e: ReactKeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       void submit();
@@ -98,6 +118,8 @@ export default function Composer({ userId, placeholder, disabled, disabledReason
     if (tooBig) setError(`${tooBig.name} is larger than 25 MB.`);
     setFiles((prev) => [...prev, ...picked.filter((f) => f.size <= MAX_ATTACHMENT_BYTES)].slice(0, 10));
   };
+
+  const togglePicker = (tab: PickerTab) => setPicker((open) => (open === tab ? null : tab));
 
   return (
     <div className="relative px-4 pb-6 pt-1">
@@ -131,7 +153,16 @@ export default function Composer({ userId, placeholder, disabled, disabledReason
         >
           <Icon name="paperclip" className="h-5 w-5" />
         </button>
-        <input ref={fileRef} type="file" multiple className="hidden" onChange={(e) => { addFiles(e.target.files); e.target.value = ''; }} />
+        <input
+          ref={fileRef}
+          type="file"
+          multiple
+          className="hidden"
+          onChange={(e) => {
+            addFiles(e.target.files);
+            e.target.value = '';
+          }}
+        />
 
         <textarea
           ref={taRef}
@@ -145,91 +176,103 @@ export default function Composer({ userId, placeholder, disabled, disabledReason
           aria-label="Message"
         />
 
-        {text.length > maxLength * 0.85 && (
-          <span className="mb-2 text-xs text-vulo-muted">
-            {maxLength - text.length}
-          </span>
-        )}
+        {text.length > maxLength * 0.85 && <span className="mb-2 text-xs text-vulo-muted">{maxLength - text.length}</span>}
 
-        <div className="relative">
+        {/* The emoji and GIF buttons share one panel with two tabs. */}
+        <div ref={pickerRef} className="relative mb-1 flex items-center gap-1">
           <button
-            onClick={() => {
-              setGifOpen((o) => !o);
-              setEmojiOpen(false);
-            }}
+            type="button"
+            onClick={() => togglePicker('gif')}
             disabled={disabled}
-            className="mb-1 rounded px-1 py-0.5 text-xs font-bold text-vulo-muted hover:text-vulo-text disabled:cursor-not-allowed"
+            className="rounded px-1 py-0.5 text-xs font-bold text-vulo-muted hover:text-vulo-text disabled:cursor-not-allowed"
             aria-label="Send a GIF"
-            aria-expanded={gifOpen}
+            aria-expanded={picker === 'gif'}
             title="Send a GIF"
           >
             GIF
           </button>
-          {gifOpen && (
-            <GifPicker
-              onPick={(url) => {
-                setGifOpen(false);
-                void sendGif(url);
-              }}
-              onClose={() => setGifOpen(false)}
-            />
-          )}
-        </div>
-
-        <div className="relative">
           <button
-            onClick={() => {
-              setEmojiOpen((o) => !o);
-              setGifOpen(false);
-            }}
+            type="button"
+            onClick={() => togglePicker('emoji')}
             disabled={disabled}
-            className="mb-1 rounded p-1 text-vulo-muted hover:text-vulo-text disabled:cursor-not-allowed"
+            className="rounded p-1 text-vulo-muted hover:text-vulo-text disabled:cursor-not-allowed"
             aria-label="Insert emoji"
-            aria-expanded={emojiOpen}
+            aria-expanded={picker === 'emoji'}
+            title="Insert emoji"
           >
             <Icon name="smile" className="h-5 w-5" />
           </button>
-          {emojiOpen && (
-            <div className="scroll-thin absolute bottom-10 right-0 z-30 max-h-80 w-72 overflow-y-auto rounded-md bg-vulo-rail p-2 shadow-xl">
-              <div className="grid grid-cols-6 gap-1">
-                {EMOJIS.map((em) => (
+
+          {picker && (
+            <div
+              role="dialog"
+              aria-label="Emoji and GIF picker"
+              className="absolute bottom-full right-0 z-30 mb-2 flex h-[480px] w-[440px] max-w-[calc(100vw-2rem)] flex-col rounded-lg bg-vulo-rail p-3 shadow-2xl"
+            >
+              <div role="tablist" aria-label="Picker tabs" className="mb-3 flex gap-1 rounded-md bg-vulo-side p-1">
+                {(['emoji', 'gif'] as const).map((tab) => (
                   <button
-                    key={em}
-                    className="rounded p-1 text-xl hover:bg-vulo-hover"
-                    onClick={() => {
-                      insertText(em);
-                      setEmojiOpen(false);
-                    }}
-                    aria-label={`Insert ${em}`}
+                    key={tab}
+                    type="button"
+                    role="tab"
+                    aria-selected={picker === tab}
+                    onClick={() => setPicker(tab)}
+                    className={`flex-1 rounded px-3 py-1.5 text-sm font-semibold transition ${
+                      picker === tab ? 'bg-vulo-active text-vulo-bright' : 'text-vulo-muted hover:text-vulo-text'
+                    }`}
                   >
-                    {em}
+                    {tab === 'emoji' ? 'Emojis' : 'GIFs'}
                   </button>
                 ))}
               </div>
 
-              <p className="mb-1 mt-2 text-xs font-bold uppercase tracking-wide text-vulo-muted">Server emojis</p>
-              {customEmojis.length === 0 ? (
-                <p className="px-1 pb-1 text-xs text-vulo-muted">
-                  No server emojis yet. Server owners and admins can add them in Server Settings.
-                </p>
-              ) : (
-                <div className="grid grid-cols-6 gap-1">
-                  {customEmojis.map((e) => (
-                    <button
-                      key={e.id}
-                      type="button"
-                      className="flex items-center justify-center rounded p-1 hover:bg-vulo-hover"
-                      title={`:${e.name}: from ${e.server_name}`}
-                      aria-label={`Insert :${e.name}:`}
-                      onClick={() => {
-                        insertText(`:${e.name}:`);
-                        setEmojiOpen(false);
-                      }}
-                    >
-                      <img src={e.asset_url} alt="" loading="lazy" className="h-7 w-7 object-contain" />
-                    </button>
-                  ))}
+              {picker === 'emoji' ? (
+                <div className="scroll-thin min-h-0 flex-1 overflow-y-auto pr-1">
+                  <p className="mb-2 text-xs font-bold uppercase tracking-wide text-vulo-muted">Standard</p>
+                  <div className="grid grid-cols-8 gap-1">
+                    {EMOJIS.map((em) => (
+                      <button
+                        key={em}
+                        type="button"
+                        className="flex h-10 items-center justify-center rounded text-2xl hover:bg-vulo-hover"
+                        onClick={() => {
+                          insertText(em);
+                          setPicker(null);
+                        }}
+                        aria-label={`Insert ${em}`}
+                      >
+                        {em}
+                      </button>
+                    ))}
+                  </div>
+
+                  <p className="mb-2 mt-4 text-xs font-bold uppercase tracking-wide text-vulo-muted">Server emojis</p>
+                  {customEmojis.length === 0 ? (
+                    <p className="px-1 pb-1 text-sm text-vulo-muted">
+                      No server emojis yet. Server owners and admins can add them in Server Settings → Emojis.
+                    </p>
+                  ) : (
+                    <div className="grid grid-cols-8 gap-1">
+                      {customEmojis.map((e) => (
+                        <button
+                          key={e.id}
+                          type="button"
+                          className="flex h-10 items-center justify-center rounded hover:bg-vulo-hover"
+                          title={`:${e.name}: from ${e.server_name}`}
+                          aria-label={`Insert :${e.name}:`}
+                          onClick={() => {
+                            insertText(`:${e.name}:`);
+                            setPicker(null);
+                          }}
+                        >
+                          <img src={e.asset_url} alt="" loading="lazy" className="h-9 w-9 object-contain" />
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
+              ) : (
+                <GifPicker onPick={(url) => void sendGif(url)} />
               )}
             </div>
           )}
