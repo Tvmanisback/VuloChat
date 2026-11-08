@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { bannerBackground } from '../lib/banner';
 import { useProfileBadges } from '../lib/badges';
 import type { Profile, UserStatus } from '../lib/types';
+import BadgeIcon from './BadgeIcon';
 import Markdown from './Markdown';
 import { Avatar } from './ui';
 
@@ -57,14 +58,8 @@ export default function ProfileCard({ profile, onClose }: { profile: Profile; on
             {badges.length > 0 && (
               <ul className="mt-3 flex flex-wrap gap-1.5" aria-label="Badges">
                 {badges.map((b) => (
-                  <li
-                    key={b.id}
-                    title={b.description ?? b.name}
-                    className="flex items-center gap-1 rounded bg-vulo-side px-2 py-1 text-xs font-medium text-vulo-text"
-                    style={{ boxShadow: `inset 0 0 0 1px ${b.color}` }}
-                  >
-                    <span aria-hidden="true">{b.emoji}</span>
-                    {b.name}
+                  <li key={b.id}>
+                    <BadgeIcon badge={b} />
                   </li>
                 ))}
               </ul>

@@ -6,6 +6,7 @@ import { useProfileBadges } from '../lib/badges';
 import { bannerBackground } from '../lib/banner';
 import { updateSettings, useSettings, type Keybinds } from '../lib/settings';
 import { Avatar, Button, ErrorText, Field, inputClass } from './ui';
+import BadgeIcon from './BadgeIcon';
 
 type Tab = 'account' | 'profile' | 'decorations' | 'appearance' | 'voice' | 'keybinds';
 
@@ -338,14 +339,8 @@ function ProfileTab() {
         {badges.length > 0 ? (
           <ul className="flex flex-wrap gap-2">
             {badges.map((b) => (
-              <li
-                key={b.id}
-                title={b.description ?? b.name}
-                className="flex items-center gap-1.5 rounded bg-vulo-side px-3 py-1.5 text-sm text-vulo-text"
-                style={{ boxShadow: `inset 0 0 0 1px ${b.color}` }}
-              >
-                <span aria-hidden="true">{b.emoji}</span>
-                {b.name}
+              <li key={b.id}>
+                <BadgeIcon badge={b} />
               </li>
             ))}
           </ul>
