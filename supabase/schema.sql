@@ -542,6 +542,7 @@ create table public.badges (
   name text not null check (char_length(name) between 1 and 40),
   description text check (char_length(description) <= 160),
   emoji text not null check (char_length(emoji) between 1 and 8),
+  icon_path text not null default '',
   color text not null default '#7c5cff' check (color ~ '^#[0-9a-fA-F]{6}$'),
   position int not null default 0,
   created_at timestamptz not null default now()
@@ -562,12 +563,15 @@ alter table public.profile_badges enable row level security;
 create policy badges_select on public.badges for select to authenticated using (true);
 create policy profile_badges_select on public.profile_badges for select to authenticated using (true);
 
-insert into public.badges (id, name, description, emoji, color, position) values
-  ('b0000000-0000-4000-8000-000000000001', 'Early member', 'Joined during the first weeks of VuloChat.', '🌱', '#23a55a', 0),
-  ('b0000000-0000-4000-8000-000000000002', 'Server builder', 'Set up a server with its own channels.', '🛠️', '#f0b232', 1),
-  ('b0000000-0000-4000-8000-000000000003', 'Beta tester', 'Helped test VuloChat before release.', '🧪', '#00a8fc', 2),
-  ('b0000000-0000-4000-8000-000000000004', 'Community helper', 'Helps others find their way around.', '🤝', '#eb459e', 3)
-on conflict (id) do nothing;
+insert into public.badges (id, name, description, emoji, icon_path, color, position) values
+  ('b0000000-0000-4000-8000-000000000001', 'Early member', 'Joined during the first weeks of VuloChat.', '🌱', 'badges/early-member.svg', '#23a55a', 0),
+  ('b0000000-0000-4000-8000-000000000002', 'Server builder', 'Set up a server with its own channels.', '🛠️', 'badges/server-builder.svg', '#f0b232', 1),
+  ('b0000000-0000-4000-8000-000000000003', 'Beta tester', 'Helped test VuloChat before release.', '🧪', 'badges/beta-tester.svg', '#00a8fc', 2),
+  ('b0000000-0000-4000-8000-000000000004', 'Community helper', 'Helps others find their way around.', '🤝', 'badges/community-helper.svg', '#eb459e', 3),
+  ('b0000000-0000-4000-8000-000000000005', 'Owner', 'Owns and maintains VuloChat.', '👑', 'badges/owner.svg', '#f0b232', 4)
+on conflict (id) do update set icon_path = excluded.icon_path;
+
+alter table public.profiles add column visible_badge_ids uuid[] not null default '{}'::uuid[];
 
 -- ===== Profile accent color, custom server emojis, and 20 more decorations (added after v1.0.0) =====
 
