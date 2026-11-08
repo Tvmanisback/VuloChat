@@ -14,12 +14,14 @@ import { hasPerm, PERM } from '../lib/permissions';
 import { getSettings, useSettings } from '../lib/settings';
 import { playCue } from '../lib/sounds';
 import type { Attachment, Channel, Embed, MemberRow, Message, Profile } from '../lib/types';
+import { useBadgesForProfiles } from '../lib/badges';
 import Composer from './Composer';
 import ForwardDialog from './ForwardDialog';
 import ReportDialog, { type ReportTarget } from './ReportDialog';
 import Markdown from './Markdown';
 import { Icon } from './icons';
 import { Avatar } from './ui';
+import BadgeIcon from './BadgeIcon';
 
 const PAGE = 50;
 const GROUP_WINDOW_MS = 7 * 60 * 1000;
@@ -58,6 +60,7 @@ export default function ChatView({ channel, userId, perms, members, myDisplayNam
   const stickToBottom = useRef(true);
 
   const profiles = new Map<string, Profile | null>(members.map((m) => [m.user_id, m.profiles] as const));
+  const badgesByProfile = useBadgesForProfiles(members.map((m) => m.user_id));
   const canSend = hasPerm(perms, PERM.SEND_MESSAGES);
   const canModerate = hasPerm(perms, PERM.MANAGE_MESSAGES);
 
@@ -280,6 +283,7 @@ export default function ChatView({ channel, userId, perms, members, myDisplayNam
           const name = author?.display_name || author?.username || 'Unknown user';
           const isEditing = editing?.id === m.id;
           const canDelete = m.author_id === userId || canModerate;
+          const shownBadges = (badgesByProfile[m.author_id] ?? []).filter((badge) => author?.visible_badge_ids?.includes(badge.id));
           const parent = m.reply_to ? messages.find((x) => x.id === m.reply_to) : undefined;
           return (
             <article
@@ -335,6 +339,11 @@ export default function ChatView({ channel, userId, perms, members, myDisplayNam
                     >
                       {name}
                     </button>
+                    {shownBadges.length > 0 && (
+                      <span className="inline-flex items-center gap-1">
+                        {shownBadges.map((badge) => <BadgeIcon key={badge.id} badge={badge} size="small" />)}
+                      </span>
+                    )}
                     <time className="text-xs text-vulo-muted" dateTime={m.created_at}>{formatTime(m.created_at)}</time>
                   </header>
                 )}
