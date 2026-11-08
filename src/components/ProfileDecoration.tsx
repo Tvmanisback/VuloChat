@@ -3,7 +3,7 @@ import { loadProfileDecorations, profileDecorationSrc, useProfileDecorations } f
 import { useSettings } from '../lib/settings';
 
 /**
- * Adds a subtle animated frame to the profile banner. The parent must be relative and
+ * Adds a subtle animated frame around the complete profile card. The parent must be relative and
  * overflow-hidden.
  */
 export default function ProfileDecorationOverlay({
@@ -30,7 +30,7 @@ export default function ProfileDecorationOverlay({
       src={profileDecorationSrc(item)}
       alt=""
       aria-hidden="true"
-      className="pointer-events-none absolute inset-0 h-full w-full object-cover"
+      className="pointer-events-none absolute inset-0 z-0 h-full w-full object-fill"
     />
   );
 }
