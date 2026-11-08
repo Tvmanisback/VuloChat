@@ -3,8 +3,8 @@ import { loadProfileDecorations, profileDecorationSrc, useProfileDecorations } f
 import { useSettings } from '../lib/settings';
 
 /**
- * Adds a badge-specific decorative frame around the profile information panel. The parent must be relative and
- * overflow-hidden.
+ * Fits the selected decoration to the profile information panel without distorting its aspect ratio.
+ * The parent must be positioned; its own clipping controls the visible decoration area.
  */
 export default function ProfileDecorationOverlay({
   decorationId,
@@ -30,7 +30,7 @@ export default function ProfileDecorationOverlay({
       src={profileDecorationSrc(item)}
       alt=""
       aria-hidden="true"
-      className="pointer-events-none absolute inset-0 z-0 h-full w-full object-contain"
+      className="pointer-events-none absolute inset-0 z-0 h-full w-full object-cover object-center"
     />
   );
 }
