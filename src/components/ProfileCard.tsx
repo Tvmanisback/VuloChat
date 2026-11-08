@@ -52,13 +52,13 @@ export default function ProfileCard({ profile, onClose }: { profile: Profile; on
         aria-label={`${name}'s profile`}
         className="relative w-full max-w-[340px] overflow-hidden rounded-lg bg-vulo-rail shadow-2xl"
       >
+        <ProfileDecorationOverlay decorationId={profile.profile_decoration_id} />
         {/* Banner: the uploaded image, or a plain gradient when none is set. GIF banners play as they load. */}
         <div className="relative z-0 h-28 w-full overflow-hidden" style={{ background: bannerBackground(profile.accent_color) }}>
           {profile.banner_url && <img src={profile.banner_url} alt="" className="h-full w-full object-cover" />}
         </div>
 
         <div className="relative z-10 isolate overflow-visible px-4 pb-4">
-          <ProfileDecorationOverlay decorationId={profile.profile_decoration_id} />
           <div className="relative z-20 -mt-12 mb-2 w-fit rounded-full bg-vulo-rail p-1.5">
             <Avatar profile={profile} size="lg" status={profile.status} ringClass="border-vulo-rail" />
           </div>
