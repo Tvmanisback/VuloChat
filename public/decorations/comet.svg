@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <circle cx="50" cy="50" r="43" fill="none" stroke="#7c5cff" stroke-opacity="0.35" stroke-width="2"/>
+  <circle cx="0" cy="0" r="2.5" fill="#f0b232">
+    <animateMotion dur="2.4s" begin="0.15s" repeatCount="indefinite" path="M50 7 A43 43 0 1 1 50 93 A43 43 0 1 1 50 7"/>
+  </circle>
+  <circle cx="0" cy="0" r="4" fill="#ffffff">
+    <animateMotion dur="2.4s" repeatCount="indefinite" path="M50 7 A43 43 0 1 1 50 93 A43 43 0 1 1 50 7"/>
+  </circle>
+</svg>

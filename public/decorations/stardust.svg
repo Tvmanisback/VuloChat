@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <defs>
+    <path id="star" d="M0 -6 L1.6 -1.6 L6 0 L1.6 1.6 L0 6 L-1.6 1.6 L-6 0 L-1.6 -1.6 Z" fill="#f0b232"/>
+  </defs>
+  <g transform="translate(93 50)">
+    <use href="#star"><animateTransform attributeName="transform" type="scale" values="0.5;1;0.5" dur="2.4s" begin="0s" repeatCount="indefinite" additive="sum"/><animate attributeName="opacity" values="0.3;1;0.3" dur="2.4s" begin="0s" repeatCount="indefinite"/></use>
+  </g>
+  <g transform="translate(71.5 87.2)">
+    <use href="#star"><animateTransform attributeName="transform" type="scale" values="0.5;1;0.5" dur="2.4s" begin="0.4s" repeatCount="indefinite" additive="sum"/><animate attributeName="opacity" values="0.3;1;0.3" dur="2.4s" begin="0.4s" repeatCount="indefinite"/></use>
+  </g>
+  <g transform="translate(28.5 87.2)">
+    <use href="#star"><animateTransform attributeName="transform" type="scale" values="0.5;1;0.5" dur="2.4s" begin="0.8s" repeatCount="indefinite" additive="sum"/><animate attributeName="opacity" values="0.3;1;0.3" dur="2.4s" begin="0.8s" repeatCount="indefinite"/></use>
+  </g>
+  <g transform="translate(7 50)">
+    <use href="#star"><animateTransform attributeName="transform" type="scale" values="0.5;1;0.5" dur="2.4s" begin="1.2s" repeatCount="indefinite" additive="sum"/><animate attributeName="opacity" values="0.3;1;0.3" dur="2.4s" begin="1.2s" repeatCount="indefinite"/></use>
+  </g>
+  <g transform="translate(28.5 12.8)">
+    <use href="#star"><animateTransform attributeName="transform" type="scale" values="0.5;1;0.5" dur="2.4s" begin="1.6s" repeatCount="indefinite" additive="sum"/><animate attributeName="opacity" values="0.3;1;0.3" dur="2.4s" begin="1.6s" repeatCount="indefinite"/></use>
+  </g>
+  <g transform="translate(71.5 12.8)">
+    <use href="#star"><animateTransform attributeName="transform" type="scale" values="0.5;1;0.5" dur="2.4s" begin="2s" repeatCount="indefinite" additive="sum"/><animate attributeName="opacity" values="0.3;1;0.3" dur="2.4s" begin="2s" repeatCount="indefinite"/></use>
+  </g>
+</svg>

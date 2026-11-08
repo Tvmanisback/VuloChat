@@ -491,3 +491,34 @@ create policy avatars_upload on storage.objects for insert to authenticated
   with check (bucket_id = 'avatars' and (storage.foldername(name))[1] = auth.uid()::text);
 create policy avatars_update on storage.objects for update to authenticated
   using (bucket_id = 'avatars' and (storage.foldername(name))[1] = auth.uid()::text);
+
+-- ===== Avatar decorations (added after v1.0.0) =====
+-- Original frames users can place around their avatar. Files live in public/decorations/.
+
+create table public.avatar_decorations (
+  id uuid primary key default gen_random_uuid(),
+  name text not null check (char_length(name) between 1 and 40),
+  asset_path text not null check (asset_path ~ '^decorations/[a-z0-9-]+\.(svg|png|webp|gif)$'),
+  animated boolean not null default false,
+  position int not null default 0,
+  created_at timestamptz not null default now()
+);
+
+alter table public.avatar_decorations enable row level security;
+
+-- Signed-in users can browse the catalog. There are no insert, update or delete
+-- policies, so users cannot add or change decorations; only the project owner can.
+create policy avatar_decorations_select on public.avatar_decorations
+  for select to authenticated using (true);
+
+alter table public.profiles
+  add column decoration_id uuid references public.avatar_decorations(id) on delete set null;
+create index profiles_decoration_idx on public.profiles(decoration_id);
+
+insert into public.avatar_decorations (id, name, asset_path, animated, position) values
+  ('d0000000-0000-4000-8000-000000000001', 'Violet ring', 'decorations/ring-violet.svg', false, 0),
+  ('d0000000-0000-4000-8000-000000000002', 'Twin ring', 'decorations/twin-ring.svg', false, 1),
+  ('d0000000-0000-4000-8000-000000000003', 'Aurora', 'decorations/aurora.svg', true, 2),
+  ('d0000000-0000-4000-8000-000000000004', 'Stardust', 'decorations/stardust.svg', true, 3),
+  ('d0000000-0000-4000-8000-000000000005', 'Comet', 'decorations/comet.svg', true, 4)
+on conflict (id) do nothing;
