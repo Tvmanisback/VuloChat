@@ -13,6 +13,7 @@ export interface Profile {
   banner_url: string | null;
   animated_banner: boolean;
   accent_color: string | null;
+  visible_badge_ids: string[];
   custom_status: string | null;
   about: string | null;
   status: UserStatus;
@@ -57,6 +58,7 @@ export interface Badge {
   name: string;
   description: string | null;
   emoji: string;
+  icon_path: string;
   color: string;
   position: number;
 }
