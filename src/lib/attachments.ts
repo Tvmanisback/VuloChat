@@ -2,15 +2,15 @@ import { supabase } from './supabase';
 import type { Attachment, Embed } from './types';
 
 // Files can be up to 1 GB. Images are also checked for explicit content before they upload, and
-// that check only reads files up to 25 MB, so larger images are refused.
+// the check service only accepts images under 12 MB, so larger images are refused.
 export const MAX_ATTACHMENT_BYTES = 1024 * 1024 * 1024;
-export const MAX_IMAGE_BYTES = 25 * 1024 * 1024;
+export const MAX_IMAGE_BYTES = 12 * 1024 * 1024;
 
 /** Why a file can't be attached, or null when it can. */
 export function attachmentLimitError(file: File): string | null {
   if (file.size > MAX_ATTACHMENT_BYTES) return `${file.name} is larger than 1 GB.`;
   if (file.type.startsWith('image/') && file.size > MAX_IMAGE_BYTES) {
-    return `${file.name} is larger than 25 MB. Images that size can't be checked, so they can't be sent.`;
+    return `${file.name} is larger than 12 MB. Images that size can't be checked, so they can't be sent.`;
   }
   return null;
 }

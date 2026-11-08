@@ -10,7 +10,8 @@
 
 // Scores run from 0 to 1. An image is refused when its worst explicit score reaches this.
 const BLOCK_AT = 0.6;
-const MAX_BYTES = 25 * 1024 * 1024;
+// The check service only accepts images under 12 MB.
+const MAX_BYTES = 12 * 1024 * 1024;
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
