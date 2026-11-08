@@ -1,11 +1,14 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase';
+import { useAuth } from '../lib/auth';
+import { useBadgesForProfiles } from '../lib/badges';
 import type { Attachment, DirectMessage, Embed, Profile } from '../lib/types';
 import Composer from './Composer';
 import Markdown from './Markdown';
 import { AttachmentList, EmbedList } from './ChatView';
 import { Avatar } from './ui';
 import ReportDialog, { type ReportTarget } from './ReportDialog';
+import BadgeIcon from './BadgeIcon';
 
 interface Props {
   userId: string;
@@ -22,6 +25,8 @@ export default function DMChat({ userId, friend }: Props) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const stick = useRef(true);
   const [reporting, setReporting] = useState<ReportTarget | null>(null);
+  const { profile: myProfile } = useAuth();
+  const badgesByProfile = useBadgesForProfiles([userId, friend.id]);
 
   useEffect(() => {
     let cancelled = false;
@@ -125,6 +130,9 @@ export default function DMChat({ userId, friend }: Props) {
           const mine = m.sender_id === userId;
           const prev = messages[i - 1];
           const continuation = !!prev && prev.sender_id === m.sender_id;
+          const authorProfile = mine ? myProfile : friend;
+          const visibleIds = authorProfile?.visible_badge_ids ?? [];
+          const shownBadges = (badgesByProfile[mine ? userId : friend.id] ?? []).filter((badge) => visibleIds.includes(badge.id));
           return (
             <article key={m.id} className={`relative flex gap-4 px-4 hover:bg-[#2e3035] ${continuation ? 'py-[1px]' : 'mt-[17px] py-[2px]'}`}>
               <div className="w-10 shrink-0">
@@ -134,6 +142,11 @@ export default function DMChat({ userId, friend }: Props) {
                 {!continuation && (
                   <header className="flex items-baseline gap-2">
                     <span className="font-medium text-vulo-bright">{mine ? 'You' : name}</span>
+                    {shownBadges.length > 0 && (
+                      <span className="inline-flex items-center gap-1">
+                        {shownBadges.map((badge) => <BadgeIcon key={badge.id} badge={badge} size="small" />)}
+                      </span>
+                    )}
                     <time className="text-xs text-vulo-muted" dateTime={m.created_at}>
                       {new Date(m.created_at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}
                     </time>
