@@ -4,6 +4,7 @@ import { supabase } from './supabase';
 import { CONFIRM_URL } from './site';
 import { loadDecorations } from './decorations';
 import { loadEmojis } from './emojis';
+import { loadStickers } from './stickers';
 import type { Profile, UserStatus } from './types';
 
 interface AuthState {
@@ -70,6 +71,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (session) {
       void loadDecorations();
       void loadEmojis();
+      void loadStickers();
     }
   }, [session]);
 

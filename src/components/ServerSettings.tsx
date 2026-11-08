@@ -2,11 +2,12 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { supabase } from '../lib/supabase';
 import { PERM, PERM_LABELS, hasPerm } from '../lib/permissions';
 import { loadEmojis, useEmojis, type CustomEmoji } from '../lib/emojis';
+import { loadStickers, useStickers, type CustomSticker } from '../lib/stickers';
 import type { Role } from '../lib/types';
 import type { ServerData } from '../lib/useServer';
 import { Button, ErrorText, Field, inputClass } from './ui';
 
-type Tab = 'overview' | 'roles' | 'emojis' | 'members';
+type Tab = 'overview' | 'roles' | 'emojis' | 'stickers' | 'members';
 
 interface Props {
   data: ServerData;
@@ -32,6 +33,7 @@ export default function ServerSettings({ data, userId, onClose, onLeftOrDeleted 
     { id: 'overview', label: 'Overview', show: canManageServer },
     { id: 'roles', label: 'Roles', show: canRoles },
     { id: 'emojis', label: 'Emojis', show: canManageServer },
+    { id: 'stickers', label: 'Stickers', show: canManageServer },
     { id: 'members', label: 'Members', show: true },
   ];
   const visible = tabs.filter((t) => t.show);
@@ -59,6 +61,7 @@ export default function ServerSettings({ data, userId, onClose, onLeftOrDeleted 
           {current === 'overview' && <OverviewTab data={data} onDeleted={onLeftOrDeleted} />}
           {current === 'roles' && <RolesTab data={data} />}
           {current === 'emojis' && <EmojisTab serverId={data.server.id} userId={userId} />}
+          {current === 'stickers' && <StickersTab serverId={data.server.id} userId={userId} />}
           {current === 'members' && <MembersTab data={data} userId={userId} />}
         </div>
       </div>
@@ -328,6 +331,156 @@ function MembersTab({ data, userId }: { data: ServerData; userId: string }) {
           );
         })}
       </ul>
+    </Section>
+  );
+}
+
+// Keep in step with the database: the server_sticker_limit trigger and the stickers bucket limit.
+const STICKER_MAX = 50;
+const STICKER_MAX_BYTES = 10 * 1024 * 1024;
+
+function StickersTab({ serverId, userId }: { serverId: string; userId: string }) {
+  const all = useStickers();
+  const mine: CustomSticker[] = all.filter((s) => s.server_id === serverId);
+  const [name, setName] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    void loadStickers();
+  }, []);
+
+  const upload = async (file: File) => {
+    const clean = name.trim().toLowerCase();
+    setError(null);
+    setSaved(false);
+    if (!/^[a-z0-9_]{2,32}$/.test(clean)) {
+      setError('Name the sticker first, using 2–32 lowercase letters, numbers or underscores.');
+      return;
+    }
+    if (mine.some((s) => s.name === clean)) {
+      setError(`${clean} already exists on this server.`);
+      return;
+    }
+    if (mine.length >= STICKER_MAX) {
+      setError(`This server already has ${STICKER_MAX} stickers.`);
+      return;
+    }
+    if (!EMOJI_TYPES.includes(file.type)) {
+      setError('Use a PNG, JPEG, GIF or WebP image.');
+      return;
+    }
+    if (file.size > STICKER_MAX_BYTES) {
+      setError('Stickers must be 10 MB or smaller.');
+      return;
+    }
+
+    setBusy(true);
+    const ext = file.name.split('.').pop()?.toLowerCase() ?? 'png';
+    const path = `${serverId}/${clean}-${Date.now()}.${ext}`;
+    try {
+      const { error: upErr } = await supabase.storage.from('stickers').upload(path, file, { contentType: file.type });
+      if (upErr) throw upErr;
+      const { data: pub } = supabase.storage.from('stickers').getPublicUrl(path);
+      const { error: insErr } = await supabase.from('server_stickers').insert({
+        server_id: serverId,
+        name: clean,
+        asset_url: pub.publicUrl,
+        animated: file.type === 'image/gif',
+        created_by: userId,
+      });
+      if (insErr) {
+        // The row was refused, so remove the image that was just uploaded.
+        await supabase.storage.from('stickers').remove([path]);
+        throw insErr;
+      }
+      setName('');
+      setSaved(true);
+      window.setTimeout(() => setSaved(false), 1500);
+    } catch (e) {
+      setError(errorText(e, 'Could not add the sticker.'));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const remove = async (s: CustomSticker) => {
+    if (!window.confirm(`Delete the ${s.name} sticker? Messages that use it will show a broken image.`)) return;
+    setError(null);
+    const { error: delErr } = await supabase.from('server_stickers').delete().eq('id', s.id);
+    if (delErr) {
+      setError(delErr.message);
+      return;
+    }
+    const marker = '/object/public/stickers/';
+    const at = s.asset_url.indexOf(marker);
+    if (at !== -1) {
+      await supabase.storage.from('stickers').remove([decodeURIComponent(s.asset_url.slice(at + marker.length))]);
+    }
+  };
+
+  const full = mine.length >= STICKER_MAX;
+
+  return (
+    <Section title="Server stickers">
+      <p className="mb-4 text-sm text-vulo-muted">
+        Members of this server can send these from the picker's Stickers tab. {mine.length} of {STICKER_MAX} used.
+      </p>
+      <ErrorText>{error}</ErrorText>
+      {saved && <p className="mb-3 rounded bg-vulo-green/10 px-3 py-2 text-sm text-vulo-green">Sticker added.</p>}
+
+      <div className="mb-6 rounded bg-vulo-side p-5">
+        <Field label="Name" hint="2–32 lowercase letters, numbers or underscores.">
+          <input
+            className={inputClass}
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            maxLength={32}
+            placeholder="wave_hi"
+            aria-label="Sticker name"
+          />
+        </Field>
+        <label
+          className={`inline-block cursor-pointer rounded bg-vulo-accent px-3 py-2 text-sm font-medium text-white hover:bg-vulo-accentHover ${
+            busy || full ? 'pointer-events-none opacity-50' : ''
+          }`}
+        >
+          {busy ? 'Uploading…' : 'Upload sticker'}
+          <input
+            type="file"
+            accept="image/png,image/jpeg,image/gif,image/webp"
+            className="hidden"
+            disabled={busy || full}
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) void upload(f);
+              e.target.value = '';
+            }}
+          />
+        </label>
+        <p className="mt-2 text-xs text-vulo-muted">PNG, JPEG, GIF or WebP, up to 10 MB. Animated GIFs play in messages.</p>
+      </div>
+
+      <p className="mb-3 text-xs font-bold uppercase tracking-wide text-vulo-muted">Stickers — {mine.length}</p>
+      {mine.length === 0 ? (
+        <p className="text-sm text-vulo-muted">No stickers yet.</p>
+      ) : (
+        <ul className="divide-y divide-vulo-line rounded bg-vulo-side">
+          {mine.map((s) => (
+            <li key={s.id} className="flex items-center gap-4 px-4 py-3">
+              <img src={s.asset_url} alt="" loading="lazy" className="h-12 w-12 object-contain" />
+              <div className="min-w-0 flex-1">
+                <p className="font-medium text-vulo-bright">{s.name}</p>
+                <p className="text-xs text-vulo-muted">{s.animated ? 'Animated' : 'Static'}</p>
+              </div>
+              <Button variant="danger" className="py-1.5" onClick={() => void remove(s)}>
+                Delete
+              </Button>
+            </li>
+          ))}
+        </ul>
+      )}
     </Section>
   );
 }

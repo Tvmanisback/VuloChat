@@ -636,6 +636,66 @@ create policy emojis_delete on storage.objects for delete to authenticated
     end
   );
 
+-- Custom stickers. Same rules as server emojis: up to 50 per server, 10 MB each, managed with
+-- MANAGE_SERVER (512). Members can use them in messages.
+create table public.server_stickers (
+  id uuid primary key default gen_random_uuid(),
+  server_id uuid not null references public.servers(id) on delete cascade,
+  name text not null check (name ~ '^[a-z0-9_]{2,32}$'),
+  asset_url text not null,
+  animated boolean not null default false,
+  created_by uuid references public.profiles(id) on delete set null,
+  created_at timestamptz not null default now(),
+  unique (server_id, name)
+);
+
+create or replace function public.server_sticker_limit()
+returns trigger language plpgsql set search_path = public as $$
+begin
+  if (select count(*) from public.server_stickers where server_id = new.server_id) >= 50 then
+    raise exception 'a server can have up to 50 stickers';
+  end if;
+  return new;
+end;
+$$;
+
+create trigger server_sticker_limit
+  before insert on public.server_stickers
+  for each row execute function public.server_sticker_limit();
+
+alter table public.server_stickers enable row level security;
+
+create policy server_stickers_select on public.server_stickers for select to authenticated
+  using (public.is_server_member(server_id));
+create policy server_stickers_insert on public.server_stickers for insert to authenticated
+  with check (created_by = auth.uid() and public.has_server_permission(server_id, 512));
+create policy server_stickers_delete on public.server_stickers for delete to authenticated
+  using (public.has_server_permission(server_id, 512));
+
+alter publication supabase_realtime add table public.server_stickers;
+
+-- Sticker images: public like emojis, 10 MB each. Files live under <server_id>/.
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('stickers', 'stickers', true, 10485760, array['image/png', 'image/jpeg', 'image/gif', 'image/webp'])
+on conflict (id) do nothing;
+
+create policy stickers_read on storage.objects for select to anon, authenticated
+  using (bucket_id = 'stickers');
+create policy stickers_upload on storage.objects for insert to authenticated
+  with check (
+    case when bucket_id = 'stickers'
+      then public.has_server_permission(((storage.foldername(name))[1])::uuid, 512)
+      else false
+    end
+  );
+create policy stickers_delete on storage.objects for delete to authenticated
+  using (
+    case when bucket_id = 'stickers'
+      then public.has_server_permission(((storage.foldername(name))[1])::uuid, 512)
+      else false
+    end
+  );
+
 -- Twenty more built-in decoration frames, numbered 6 to 25 in public/decorations/.
 insert into public.avatar_decorations (id, name, asset_path, animated, position) values
   ('d0000000-0000-4000-8000-000000000006', 'Halo', 'decorations/halo.svg', false, 5),

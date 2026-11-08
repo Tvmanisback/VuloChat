@@ -1,7 +1,19 @@
 import { supabase } from './supabase';
 import type { Attachment, Embed } from './types';
 
-export const MAX_ATTACHMENT_BYTES = 25 * 1024 * 1024;
+// Files can be up to 1 GB. Images are also checked for explicit content before they upload, and
+// that check only reads files up to 25 MB, so larger images are refused.
+export const MAX_ATTACHMENT_BYTES = 1024 * 1024 * 1024;
+export const MAX_IMAGE_BYTES = 25 * 1024 * 1024;
+
+/** Why a file can't be attached, or null when it can. */
+export function attachmentLimitError(file: File): string | null {
+  if (file.size > MAX_ATTACHMENT_BYTES) return `${file.name} is larger than 1 GB.`;
+  if (file.type.startsWith('image/') && file.size > MAX_IMAGE_BYTES) {
+    return `${file.name} is larger than 25 MB. Images that size can't be checked, so they can't be sent.`;
+  }
+  return null;
+}
 const URL_RE = /\bhttps?:\/\/[^\s<>()]+[^\s<>()*_.,!?;:'"]/gi;
 const IMAGE_RE = /\.(png|jpe?g|gif|webp|avif)(\?.*)?$/i;
 
@@ -26,7 +38,8 @@ export function extractEmbeds(text: string): Embed[] {
 
 /** Uploads a file to the private attachments bucket under the user's folder. */
 export async function uploadAttachment(userId: string, file: File): Promise<Attachment> {
-  if (file.size > MAX_ATTACHMENT_BYTES) throw new Error(`${file.name} is larger than 25 MB.`);
+  const problem = attachmentLimitError(file);
+  if (problem) throw new Error(problem);
   const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
   const path = `${userId}/${Date.now()}-${safe}`;
   const { error } = await supabase.storage.from('attachments').upload(path, file, {

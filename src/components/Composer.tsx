@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
-import { extractEmbeds, formatBytes, MAX_ATTACHMENT_BYTES, uploadAttachment } from '../lib/attachments';
+import { attachmentLimitError, extractEmbeds, formatBytes, uploadAttachment } from '../lib/attachments';
 import { useEmojis } from '../lib/emojis';
+import { useStickers } from '../lib/stickers';
 import { useDevice } from '../lib/device';
 import { checkImage } from '../lib/moderation';
 import type { Attachment, Embed } from '../lib/types';
@@ -22,7 +23,7 @@ function errorMessage(e: unknown, fallback: string): string {
   return fallback;
 }
 
-type PickerTab = 'emoji' | 'gif';
+type PickerTab = 'emoji' | 'gif' | 'sticker';
 
 interface Props {
   userId: string;
@@ -54,6 +55,7 @@ export default function Composer({
   const fileRef = useRef<HTMLInputElement>(null);
   const pickerRef = useRef<HTMLDivElement>(null);
   const customEmojis = useEmojis();
+  const stickers = useStickers();
   // On phones, Enter starts a new line and the send button sends, as on most phone keyboards.
   const mobile = useDevice() === 'mobile';
 
@@ -101,8 +103,8 @@ export default function Composer({
     }
   };
 
-  // A GIF is sent as a Markdown image, so it is stored as the message text and shows inline.
-  const sendGif = async (url: string) => {
+  // A GIF or sticker is sent as a Markdown image, so it is stored as the message text and shows inline.
+  const sendImage = async (label: string, url: string) => {
     setPicker(null);
     if (disabled || busy) return;
     // Parentheses and spaces would end the Markdown image early, so they are percent-encoded.
@@ -111,13 +113,16 @@ export default function Composer({
     setBusy(true);
     setError(null);
     try {
-      await onSend(`![GIF](${safe})`, [], []);
+      await onSend(`![${label}](${safe})`, [], []);
     } catch (e) {
-      setError(errorMessage(e, 'The GIF failed to send.'));
+      setError(errorMessage(e, `The ${label.toLowerCase()} failed to send.`));
     } finally {
       setBusy(false);
     }
   };
+
+  const sendGif = (url: string) => sendImage('GIF', url);
+  const sendSticker = (url: string) => sendImage('Sticker', url);
 
   const onKeyDown = (e: ReactKeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey && !mobile) {
@@ -145,9 +150,9 @@ export default function Composer({
   const addFiles = (list: FileList | null) => {
     if (!list) return;
     const picked = Array.from(list);
-    const tooBig = picked.find((f) => f.size > MAX_ATTACHMENT_BYTES);
-    if (tooBig) setError(`${tooBig.name} is larger than 25 MB.`);
-    setFiles((prev) => [...prev, ...picked.filter((f) => f.size <= MAX_ATTACHMENT_BYTES)].slice(0, 10));
+    const problems = picked.map(attachmentLimitError).filter((p): p is string => p !== null);
+    if (problems.length) setError(problems[0]);
+    setFiles((prev) => [...prev, ...picked.filter((f) => attachmentLimitError(f) === null)].slice(0, 10));
   };
 
   const togglePicker = (tab: PickerTab) => setPicker((open) => (open === tab ? null : tab));
@@ -240,6 +245,17 @@ export default function Composer({
           </button>
           <button
             type="button"
+            onClick={() => togglePicker('sticker')}
+            disabled={disabled}
+            className="rounded px-1 py-0.5 text-xs font-bold text-vulo-muted hover:text-vulo-text disabled:cursor-not-allowed"
+            aria-label="Send a sticker"
+            aria-expanded={picker === 'sticker'}
+            title="Send a sticker"
+          >
+            Sticker
+          </button>
+          <button
+            type="button"
             onClick={() => togglePicker('emoji')}
             disabled={disabled}
             className="rounded p-1 text-vulo-muted hover:text-vulo-text disabled:cursor-not-allowed"
@@ -257,7 +273,7 @@ export default function Composer({
               className="absolute bottom-full right-0 z-30 mb-2 flex h-[480px] w-[440px] max-w-[calc(100vw-2rem)] flex-col rounded-lg bg-vulo-rail p-3 shadow-2xl"
             >
               <div role="tablist" aria-label="Picker tabs" className="mb-3 flex gap-1 rounded-md bg-vulo-side p-1">
-                {(['emoji', 'gif'] as const).map((tab) => (
+                {(['emoji', 'gif', 'sticker'] as const).map((tab) => (
                   <button
                     key={tab}
                     type="button"
@@ -268,7 +284,7 @@ export default function Composer({
                       picker === tab ? 'bg-vulo-active text-vulo-bright' : 'text-vulo-muted hover:text-vulo-text'
                     }`}
                   >
-                    {tab === 'emoji' ? 'Emojis' : 'GIFs'}
+                    {tab === 'emoji' ? 'Emojis' : tab === 'gif' ? 'GIFs' : 'Stickers'}
                   </button>
                 ))}
               </div>
@@ -313,6 +329,30 @@ export default function Composer({
                           }}
                         >
                           <img src={e.asset_url} alt="" loading="lazy" className="h-9 w-9 object-contain" />
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ) : picker === 'sticker' ? (
+                <div className="scroll-thin min-h-0 flex-1 overflow-y-auto pr-1">
+                  <p className="mb-2 text-xs font-bold uppercase tracking-wide text-vulo-muted">Server stickers</p>
+                  {stickers.length === 0 ? (
+                    <p className="px-1 pb-1 text-sm text-vulo-muted">
+                      No stickers yet. Server owners and admins can add them in Server Settings → Stickers.
+                    </p>
+                  ) : (
+                    <div className="grid grid-cols-4 gap-2">
+                      {stickers.map((s) => (
+                        <button
+                          key={s.id}
+                          type="button"
+                          className="flex aspect-square items-center justify-center rounded p-1 hover:bg-vulo-hover"
+                          title={`${s.name} from ${s.server_name}`}
+                          aria-label={`Send ${s.name} sticker`}
+                          onClick={() => void sendSticker(s.asset_url)}
+                        >
+                          <img src={s.asset_url} alt="" loading="lazy" className="h-full w-full object-contain" />
                         </button>
                       ))}
                     </div>
