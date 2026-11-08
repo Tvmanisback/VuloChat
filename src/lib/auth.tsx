@@ -6,6 +6,7 @@ import { loadDecorations } from './decorations';
 import { loadNameplates } from './nameplates';
 import { loadEmojis } from './emojis';
 import { loadStickers } from './stickers';
+import { registerDeviceIdentity } from './e2ee';
 import type { Profile, UserStatus } from './types';
 
 interface AuthState {
@@ -77,6 +78,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       void loadNameplates();
       void loadEmojis();
       void loadStickers();
+      void registerDeviceIdentity(session.user.id).catch((error) => {
+        console.error('E2EE device registration failed', error);
+      });
     }
   }, [session]);
 
