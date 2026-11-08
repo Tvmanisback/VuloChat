@@ -3,8 +3,8 @@ import { loadProfileDecorations, profileDecorationSrc, useProfileDecorations } f
 import { useSettings } from '../lib/settings';
 
 /**
- * Paints a profile card decoration across the top of the banner. The parent must be `relative`
- * and `overflow-hidden`, and the content above it must be `relative` so it sits on top.
+ * Fills the profile card body with its decoration. The parent must be relative and
+ * overflow-hidden, with profile content positioned above this layer.
  */
 export default function ProfileDecorationOverlay({
   decorationId,
@@ -30,7 +30,7 @@ export default function ProfileDecorationOverlay({
       src={profileDecorationSrc(item)}
       alt=""
       aria-hidden="true"
-      className="pointer-events-none absolute inset-0 h-full w-full object-cover"
+      className="pointer-events-none absolute inset-0 h-full w-full object-fill"
     />
   );
 }
