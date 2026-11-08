@@ -26,6 +26,12 @@ export interface EncryptedEnvelope {
   ciphertext: string;
 }
 
+function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
+  // Copy into a guaranteed ArrayBuffer so newer TypeScript DOM typings do not
+  // treat Uint8Array<ArrayBufferLike> as a possible SharedArrayBuffer.
+  return Uint8Array.from(bytes).buffer as ArrayBuffer;
+}
+
 function bytesToBase64(bytes: Uint8Array): string {
   let binary = '';
   for (const byte of bytes) binary += String.fromCharCode(byte);
@@ -89,7 +95,7 @@ async function deriveMessageKey(privateKey: CryptoKey, publicKey: CryptoKey, sal
   const shared = await crypto.subtle.deriveBits({ name: 'ECDH', public: publicKey }, privateKey, 256);
   const material = await crypto.subtle.importKey('raw', shared, 'HKDF', false, ['deriveKey']);
   return crypto.subtle.deriveKey(
-    { name: 'HKDF', hash: 'SHA-256', salt, info: encoder.encode('VuloChat E2EE message v1') },
+    { name: 'HKDF', hash: 'SHA-256', salt: toArrayBuffer(salt), info: toArrayBuffer(encoder.encode('VuloChat E2EE message v1')) },
     material,
     { name: 'AES-GCM', length: 256 },
     false,
@@ -100,7 +106,7 @@ async function deriveMessageKey(privateKey: CryptoKey, publicKey: CryptoKey, sal
 /** Encrypts one payload to a device public key. Send the returned envelope, never plaintext. */
 export async function encryptForDevice(plaintext: string, recipientPublicKey: string): Promise<EncryptedEnvelope> {
   const recipient = await crypto.subtle.importKey(
-    'raw', base64ToBytes(recipientPublicKey), { name: 'ECDH', namedCurve: 'P-256' }, false, [],
+    'raw', toArrayBuffer(base64ToBytes(recipientPublicKey)), { name: 'ECDH', namedCurve: 'P-256' }, false, [],
   );
   const ephemeral = await crypto.subtle.generateKey(
     { name: 'ECDH', namedCurve: 'P-256' }, true, ['deriveBits'],
@@ -108,7 +114,7 @@ export async function encryptForDevice(plaintext: string, recipientPublicKey: st
   const salt = crypto.getRandomValues(new Uint8Array(32));
   const iv = crypto.getRandomValues(new Uint8Array(12));
   const key = await deriveMessageKey(ephemeral.privateKey, recipient, salt);
-  const encrypted = await crypto.subtle.encrypt({ name: 'AES-GCM', iv, additionalData: salt }, key, encoder.encode(plaintext));
+  const encrypted = await crypto.subtle.encrypt({ name: 'AES-GCM', iv: toArrayBuffer(iv), additionalData: toArrayBuffer(salt) }, key, toArrayBuffer(encoder.encode(plaintext)));
   const ephemeralPublic = await crypto.subtle.exportKey('raw', ephemeral.publicKey);
   const packed = new Uint8Array(salt.length + new Uint8Array(encrypted).length);
   packed.set(salt);
@@ -129,14 +135,14 @@ export async function decryptForDevice(envelope: EncryptedEnvelope): Promise<str
   }
   const identity = await getDeviceIdentity();
   const ephemeral = await crypto.subtle.importKey(
-    'raw', base64ToBytes(envelope.ephemeralPublicKey), { name: 'ECDH', namedCurve: 'P-256' }, false, [],
+    'raw', toArrayBuffer(base64ToBytes(envelope.ephemeralPublicKey)), { name: 'ECDH', namedCurve: 'P-256' }, false, [],
   );
   const packed = base64ToBytes(envelope.ciphertext);
   const salt = packed.slice(0, 32);
   const ciphertext = packed.slice(32);
   const key = await deriveMessageKey(identity.privateKey, ephemeral, salt);
   const plaintext = await crypto.subtle.decrypt(
-    { name: 'AES-GCM', iv: base64ToBytes(envelope.iv), additionalData: salt }, key, ciphertext,
+    { name: 'AES-GCM', iv: toArrayBuffer(base64ToBytes(envelope.iv)), additionalData: toArrayBuffer(salt) }, key, toArrayBuffer(ciphertext),
   );
   return decoder.decode(plaintext);
 }
