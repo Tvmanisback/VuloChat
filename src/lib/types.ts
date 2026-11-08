@@ -6,7 +6,11 @@ export interface Profile {
   username: string;
   display_name: string | null;
   avatar_url: string | null;
+  animated_avatar: boolean;
   decoration_id: string | null;
+  banner_url: string | null;
+  animated_banner: boolean;
+  custom_status: string | null;
   about: string | null;
   status: UserStatus;
   created_at: string;
@@ -17,6 +21,15 @@ export interface AvatarDecoration {
   name: string;
   asset_path: string;
   animated: boolean;
+  position: number;
+}
+
+export interface Badge {
+  id: string;
+  name: string;
+  description: string | null;
+  emoji: string;
+  color: string;
   position: number;
 }
 

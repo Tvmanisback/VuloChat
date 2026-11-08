@@ -2,13 +2,15 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { useAuth } from '../lib/auth';
 import { supabase } from '../lib/supabase';
 import { loadDecorations, useDecorations } from '../lib/decorations';
+import { useProfileBadges } from '../lib/badges';
 import { updateSettings, useSettings, type Keybinds } from '../lib/settings';
 import { Avatar, Button, ErrorText, Field, inputClass } from './ui';
 
-type Tab = 'account' | 'decorations' | 'appearance' | 'voice' | 'keybinds';
+type Tab = 'account' | 'profile' | 'decorations' | 'appearance' | 'voice' | 'keybinds';
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'account', label: 'My Account' },
+  { id: 'profile', label: 'Profile' },
   { id: 'decorations', label: 'Avatar Decoration' },
   { id: 'appearance', label: 'Appearance' },
   { id: 'voice', label: 'Voice & Video' },
@@ -46,6 +48,7 @@ export default function UserSettings({ onClose }: { onClose: () => void }) {
       <div className="scroll-thin flex-1 overflow-y-auto px-10 py-16">
         <div className="mx-auto max-w-2xl">
           {tab === 'account' && <AccountTab />}
+          {tab === 'profile' && <ProfileTab />}
           {tab === 'decorations' && <DecorationTab />}
           {tab === 'appearance' && <AppearanceTab />}
           {tab === 'voice' && <VoiceTab />}
@@ -120,7 +123,7 @@ function AccountTab() {
       return;
     }
     const { data } = supabase.storage.from('avatars').getPublicUrl(path);
-    await updateProfile({ avatar_url: data.publicUrl });
+    await updateProfile({ avatar_url: data.publicUrl, animated_avatar: file.type === 'image/gif' });
     setUploading(false);
   };
 
@@ -159,7 +162,7 @@ function AccountTab() {
         <Field label="Username" hint="Usernames are fixed when you sign up.">
           <input className={`${inputClass} opacity-60`} value={profile.username} disabled />
         </Field>
-        <Field label="About me">
+        <Field label="About me" hint="Supports **bold**, *italic*, `code` and links. Shown on your profile card.">
           <textarea className={inputClass} rows={3} value={about} onChange={(e) => setAbout(e.target.value)} maxLength={190} />
         </Field>
         <Button onClick={() => void save()}>Save changes</Button>
@@ -177,6 +180,141 @@ function LogoutButton() {
     >
       Log out
     </button>
+  );
+}
+
+function ProfileTab() {
+  const { profile, session, updateProfile } = useAuth();
+  const badges = useProfileBadges(profile?.id ?? null);
+  const [customStatus, setCustomStatus] = useState(profile?.custom_status ?? '');
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
+
+  if (!profile) return null;
+
+  const saveStatus = async () => {
+    setError(null);
+    setSaved(false);
+    try {
+      await updateProfile({ custom_status: customStatus.trim() || null });
+      setSaved(true);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not save.');
+    }
+  };
+
+  const uploadBanner = async (file: File) => {
+    if (!session) return;
+    if (!file.type.startsWith('image/') || file.size > 8 * 1024 * 1024) {
+      setError('Pick an image under 8 MB.');
+      return;
+    }
+    setUploading(true);
+    setError(null);
+    setSaved(false);
+    const ext = file.name.split('.').pop() ?? 'png';
+    const path = `${session.user.id}/banner-${Date.now()}.${ext}`;
+    const { error: upErr } = await supabase.storage.from('avatars').upload(path, file, { contentType: file.type, upsert: true });
+    if (upErr) {
+      setUploading(false);
+      setError(upErr.message);
+      return;
+    }
+    const { data } = supabase.storage.from('avatars').getPublicUrl(path);
+    try {
+      await updateProfile({ banner_url: data.publicUrl, animated_banner: file.type === 'image/gif' });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not save the banner.');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const removeBanner = async () => {
+    setError(null);
+    setSaved(false);
+    try {
+      await updateProfile({ banner_url: null, animated_banner: false });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not remove the banner.');
+    }
+  };
+
+  return (
+    <Section title="Profile">
+      <div className="mb-6 overflow-hidden rounded-lg bg-vulo-side">
+        <div className="h-28 bg-gradient-to-br from-[#7c5cff] to-[#00a8fc]">
+          {profile.banner_url && <img src={profile.banner_url} alt="" className="h-full w-full object-cover" />}
+        </div>
+        <div className="flex items-center justify-between gap-3 p-4">
+          <p className="min-w-0 text-sm text-vulo-muted">
+            {profile.banner_url
+              ? profile.animated_banner
+                ? 'Animated GIF banner'
+                : 'Custom banner'
+              : 'No banner. The default gradient is shown.'}
+          </p>
+          <div className="flex shrink-0 gap-2">
+            <label className="cursor-pointer rounded bg-vulo-accent px-3 py-2 text-sm font-medium text-white hover:bg-vulo-accentHover">
+              {uploading ? 'Uploading…' : profile.banner_url ? 'Change banner' : 'Upload banner'}
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                disabled={uploading}
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) void uploadBanner(f);
+                  e.target.value = '';
+                }}
+              />
+            </label>
+            {profile.banner_url && (
+              <Button variant="secondary" onClick={() => void removeBanner()} disabled={uploading}>
+                Remove
+              </Button>
+            )}
+          </div>
+        </div>
+      </div>
+      <p className="-mt-4 mb-6 text-xs text-vulo-muted">Images up to 8 MB. GIFs play as animated banners.</p>
+
+      <ErrorText>{error}</ErrorText>
+      {saved && <p className="mb-3 rounded bg-vulo-green/10 px-3 py-2 text-sm text-vulo-green">Saved.</p>}
+
+      <Field label="Custom status" hint="Shown under your name in the member list and on your profile card.">
+        <input
+          className={inputClass}
+          value={customStatus}
+          maxLength={128}
+          placeholder="What are you up to?"
+          onChange={(e) => setCustomStatus(e.target.value)}
+        />
+      </Field>
+      <Button onClick={() => void saveStatus()}>Save status</Button>
+
+      <div className="mt-8">
+        <p className="mb-3 text-xs font-bold uppercase tracking-wide text-vulo-muted">Badges</p>
+        {badges.length > 0 ? (
+          <ul className="flex flex-wrap gap-2">
+            {badges.map((b) => (
+              <li
+                key={b.id}
+                title={b.description ?? b.name}
+                className="flex items-center gap-1.5 rounded bg-vulo-side px-3 py-1.5 text-sm text-vulo-text"
+                style={{ boxShadow: `inset 0 0 0 1px ${b.color}` }}
+              >
+                <span aria-hidden="true">{b.emoji}</span>
+                {b.name}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-sm text-vulo-muted">No badges yet. VuloChat grants badges to members.</p>
+        )}
+      </div>
+    </Section>
   );
 }
 

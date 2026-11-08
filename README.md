@@ -15,6 +15,8 @@ Free chat for servers, channels, voice, and direct messages. Use it in your brow
 - **Manage roles.** If you have the permission, create colored roles, assign them to members, or remove members.
 - **Customize everything in Settings:** your account, avatar decoration, appearance, voice and video devices, and keybinds. Server owners and admins can edit server overview, roles, and members.
 - **Pick an avatar decoration.** Choose a frame from the catalog in Settings → Avatar Decoration. It shows around your avatar everywhere you appear, including in animated versions.
+- **Customize your profile.** In Settings → Profile, upload a banner (GIF banners play), set a custom status, and see your badges. Your About me text supports Markdown.
+- **Open profile cards.** Click a member in the member list or a name in chat to see their banner, avatar, status, badges, and About me.
 - **Use the Windows app** for a window with its own controls, a tray icon that keeps VuloChat running, global hotkeys, and desktop notifications.
 - **Use the Android app.** Swipe out the menu for servers and channels. The back button closes open panels before it leaves the app.
 
@@ -93,3 +95,5 @@ VuloChat/
 - **Android notifications:** push notifications aren't set up yet. They need a Firebase project.
 - **Look and feel:** VuloChat has its own name, logo, and violet accent, with a layout similar to Discord. It isn't a copy of Discord's design.
 - **Emoji:** the picker has a curated set for now. The full set and skin tones are planned.
+- **Animated flags:** uploads of GIF avatars and banners are marked as animated. Animated PNG and WebP files display correctly but aren't flagged.
+- **Badges and decorations:** members can't pick these yet. The project owner grants badges and adds decorations in the database.

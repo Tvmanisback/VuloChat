@@ -14,7 +14,14 @@ interface AuthState {
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
   setStatus: (status: UserStatus) => Promise<void>;
-  updateProfile: (patch: Partial<Pick<Profile, 'display_name' | 'about' | 'avatar_url' | 'decoration_id'>>) => Promise<void>;
+  updateProfile: (
+    patch: Partial<
+      Pick<
+        Profile,
+        'display_name' | 'about' | 'avatar_url' | 'animated_avatar' | 'decoration_id' | 'banner_url' | 'animated_banner' | 'custom_status'
+      >
+    >,
+  ) => Promise<void>;
 }
 
 const AuthCtx = createContext<AuthState | null>(null);

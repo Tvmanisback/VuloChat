@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import type { MemberRow, MemberRoleRow, Role, UserStatus } from '../lib/types';
+import type { MemberRow, MemberRoleRow, Profile, Role, UserStatus } from '../lib/types';
 import { Avatar } from './ui';
 
 interface Props {
@@ -7,9 +7,10 @@ interface Props {
   roles: Role[];
   memberRoles: MemberRoleRow[];
   ownerId: string;
+  onOpenProfile?: (profile: Profile) => void;
 }
 
-export default function MemberList({ members, roles, memberRoles, ownerId }: Props) {
+export default function MemberList({ members, roles, memberRoles, ownerId, onOpenProfile }: Props) {
   // The highest-positioned role with a name and colour sets a member's name colour.
   const roleColor = useMemo(() => {
     const byId = new Map<string, Role>(roles.map((r) => [r.id, r] as const));
@@ -47,12 +48,20 @@ export default function MemberList({ members, roles, memberRoles, ownerId }: Pro
             const status: UserStatus = p?.status ?? 'offline';
             return (
               <li key={m.user_id}>
-                <div className={`flex items-center gap-3 rounded px-2 py-1.5 hover:bg-vulo-hover ${status === 'offline' ? 'opacity-50' : ''}`}>
+                <button
+                  type="button"
+                  onClick={() => p && onOpenProfile?.(p)}
+                  disabled={!p}
+                  className={`flex w-full items-center gap-3 rounded px-2 py-1.5 text-left hover:bg-vulo-hover disabled:cursor-default ${status === 'offline' ? 'opacity-50' : ''}`}
+                >
                   <Avatar profile={p ?? null} size="sm" status={status} ringClass="border-vulo-side" />
-                  <span className="truncate text-sm font-medium" style={{ color: roleColor.get(m.user_id) ?? '#dbdee1' }}>
-                    {name}
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-medium" style={{ color: roleColor.get(m.user_id) ?? '#dbdee1' }}>
+                      {name}
+                    </span>
+                    {p?.custom_status && <span className="block truncate text-xs text-vulo-muted">{p.custom_status}</span>}
                   </span>
-                </div>
+                </button>
               </li>
             );
           })}

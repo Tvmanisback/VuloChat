@@ -19,6 +19,7 @@ interface Props {
   perms: number;
   members: MemberRow[];
   myDisplayName: string;
+  onOpenProfile?: (profile: Profile) => void;
 }
 
 function formatTime(iso: string) {
@@ -29,7 +30,7 @@ function formatTime(iso: string) {
   return sameDay ? `Today at ${time}` : `${d.toLocaleDateString()} ${time}`;
 }
 
-export default function ChatView({ channel, userId, perms, members, myDisplayName }: Props) {
+export default function ChatView({ channel, userId, perms, members, myDisplayName, onOpenProfile }: Props) {
   const settings = useSettings();
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
@@ -215,7 +216,15 @@ export default function ChatView({ channel, userId, perms, members, myDisplayNam
             >
               <div className="w-10 shrink-0">
                 {!continuation ? (
-                  <Avatar profile={author ?? null} size="md" className="mt-0.5" />
+                  <button
+                    type="button"
+                    onClick={() => author && onOpenProfile?.(author)}
+                    disabled={!author}
+                    className="mt-0.5 rounded-full hover:opacity-80 focus-visible:ring-2 focus-visible:ring-vulo-accent disabled:cursor-default"
+                    aria-label={`View ${name}'s profile`}
+                  >
+                    <Avatar profile={author ?? null} size="md" />
+                  </button>
                 ) : (
                   settings.showTimestamps && (
                     <time className="hidden pt-1 text-center text-[11px] text-vulo-muted group-hover:block" dateTime={m.created_at}>
@@ -228,7 +237,14 @@ export default function ChatView({ channel, userId, perms, members, myDisplayNam
               <div className="min-w-0 flex-1">
                 {!continuation && (
                   <header className="flex items-baseline gap-2">
-                    <span className="font-medium text-vulo-bright">{name}</span>
+                    <button
+                      type="button"
+                      onClick={() => author && onOpenProfile?.(author)}
+                      disabled={!author}
+                      className="font-medium text-vulo-bright hover:underline disabled:cursor-default disabled:no-underline"
+                    >
+                      {name}
+                    </button>
                     <time className="text-xs text-vulo-muted" dateTime={m.created_at}>{formatTime(m.created_at)}</time>
                   </header>
                 )}

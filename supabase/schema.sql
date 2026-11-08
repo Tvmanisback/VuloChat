@@ -522,3 +522,44 @@ insert into public.avatar_decorations (id, name, asset_path, animated, position)
   ('d0000000-0000-4000-8000-000000000004', 'Stardust', 'decorations/stardust.svg', true, 3),
   ('d0000000-0000-4000-8000-000000000005', 'Comet', 'decorations/comet.svg', true, 4)
 on conflict (id) do nothing;
+
+-- ===== Profile banners, animated flags, custom status, and badges (added after v1.0.0) =====
+
+alter table public.profiles
+  add column banner_url text,
+  add column animated_avatar boolean not null default false,
+  add column animated_banner boolean not null default false,
+  add column custom_status text check (char_length(custom_status) <= 128);
+
+-- Badge catalog. Signed-in users can read it. Nobody can write it from the app.
+create table public.badges (
+  id uuid primary key default gen_random_uuid(),
+  name text not null check (char_length(name) between 1 and 40),
+  description text check (char_length(description) <= 160),
+  emoji text not null check (char_length(emoji) between 1 and 8),
+  color text not null default '#7c5cff' check (color ~ '^#[0-9a-fA-F]{6}$'),
+  position int not null default 0,
+  created_at timestamptz not null default now()
+);
+
+-- Badges granted to profiles. Only the project owner can grant or revoke them.
+create table public.profile_badges (
+  profile_id uuid not null references public.profiles(id) on delete cascade,
+  badge_id uuid not null references public.badges(id) on delete cascade,
+  granted_at timestamptz not null default now(),
+  primary key (profile_id, badge_id)
+);
+create index profile_badges_badge_idx on public.profile_badges(badge_id);
+
+alter table public.badges enable row level security;
+alter table public.profile_badges enable row level security;
+
+create policy badges_select on public.badges for select to authenticated using (true);
+create policy profile_badges_select on public.profile_badges for select to authenticated using (true);
+
+insert into public.badges (id, name, description, emoji, color, position) values
+  ('b0000000-0000-4000-8000-000000000001', 'Early member', 'Joined during the first weeks of VuloChat.', '🌱', '#23a55a', 0),
+  ('b0000000-0000-4000-8000-000000000002', 'Server builder', 'Set up a server with its own channels.', '🛠️', '#f0b232', 1),
+  ('b0000000-0000-4000-8000-000000000003', 'Beta tester', 'Helped test VuloChat before release.', '🧪', '#00a8fc', 2),
+  ('b0000000-0000-4000-8000-000000000004', 'Community helper', 'Helps others find their way around.', '🤝', '#eb459e', 3)
+on conflict (id) do nothing;

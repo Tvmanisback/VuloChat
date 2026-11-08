@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabase';
 import { useServerData } from '../lib/useServer';
 import { useVoice } from '../lib/voiceContext';
 import { getSettings, useSettings } from '../lib/settings';
-import type { DirectMessage, Message, Server } from '../lib/types';
+import type { DirectMessage, Message, Profile, Server } from '../lib/types';
 import { hasPerm, PERM } from '../lib/permissions';
 import DesktopTitlebar from './DesktopTitlebar';
 import ServerRail from './ServerRail';
@@ -14,6 +14,7 @@ import VoiceStage from './VoiceStage';
 import MemberList from './MemberList';
 import { HomeMain, HomeSidebar, useFriends } from './HomeView';
 import UserSettings from './UserSettings';
+import ProfileCard from './ProfileCard';
 import ServerSettings from './ServerSettings';
 import { CreateChannelModal, CreateServerModal, InviteModal, JoinServerModal } from './ServerModals';
 import { Icon } from './icons';
@@ -44,6 +45,7 @@ export default function AppShell() {
   const [dmUserId, setDmUserId] = useState<string | null>(null);
   const [drawer, setDrawer] = useState(false);
   const [modal, setModal] = useState<ModalState>(null);
+  const [profileCard, setProfileCard] = useState<Profile | null>(null);
 
   const data = useServerData(activeServerId, uid);
   const friends = useFriends(uid);
@@ -295,6 +297,7 @@ export default function AppShell() {
         perms={perms}
         members={data.members}
         myDisplayName={profile?.display_name || profile?.username || ''}
+        onOpenProfile={setProfileCard}
       />
     );
   }
@@ -346,7 +349,13 @@ export default function AppShell() {
       </main>
 
       {!homeMode && data.server && activeChannel?.type !== 'voice' && (
-        <MemberList members={data.members} roles={data.roles} memberRoles={data.memberRoles} ownerId={data.server.owner_id} />
+        <MemberList
+          members={data.members}
+          roles={data.roles}
+          memberRoles={data.memberRoles}
+          ownerId={data.server.owner_id}
+          onOpenProfile={setProfileCard}
+        />
       )}
 
       {modal?.kind === 'createServer' && (
@@ -392,6 +401,7 @@ export default function AppShell() {
         />
       )}
       {modal?.kind === 'userSettings' && <UserSettings onClose={() => setModal(null)} />}
+      {profileCard && <ProfileCard profile={profileCard} onClose={() => setProfileCard(null)} />}
 
       {/* The voice bar lives in the sidebar; if voice drops unexpectedly we still want the user to know. */}
       <span className="sr-only" aria-live="polite">
