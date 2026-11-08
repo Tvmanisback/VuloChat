@@ -359,9 +359,6 @@ function Facts() {
         </Fact>
         <Fact label="Money">Nothing is sold in this version. There are no purchases and no ads.</Fact>
         <Fact label="Analytics">None in the app's code.</Fact>
-        <Fact label="Open source">
-          The code is on <ExternalLink href={REPO_URL}>GitHub</ExternalLink>. Anyone can read it or run their own copy.
-        </Fact>
         <Fact label="Languages">English for now.</Fact>
       </div>
     </Page>
@@ -477,15 +474,6 @@ const QUESTIONS: { q: string; a: ReactNode }[] = [
   {
     q: 'Can I undo deleting my account?',
     a: <p>No. Deleting an account cannot be undone.</p>,
-  },
-  {
-    q: 'Can I run my own copy?',
-    a: (
-      <p>
-        Yes. The code is open source, and the README on <ExternalLink href={REPO_URL}>GitHub</ExternalLink> explains the setup. You
-        will need your own Supabase project.
-      </p>
-    ),
   },
   {
     q: 'Which devices does it work on?',
