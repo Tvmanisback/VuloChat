@@ -22,6 +22,7 @@ import Markdown from './Markdown';
 import { Icon } from './icons';
 import { Avatar } from './ui';
 import BadgeIcon from './BadgeIcon';
+import { decryptMessageForCurrentDevice, encryptMessageForUsers } from '../lib/e2ee';
 
 const PAGE = 50;
 const GROUP_WINDOW_MS = 7 * 60 * 1000;
@@ -49,6 +50,7 @@ export default function ChatView({ channel, userId, perms, members, myDisplayNam
   const pressTimer = useRef<number | null>(null);
   const pressStart = useRef<{ x: number; y: number } | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
+  const [displayMessages, setDisplayMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
   const [hasMore, setHasMore] = useState(false);
   const [menu, setMenu] = useState<{ x: number; y: number; msg: Message } | null>(null);
@@ -119,6 +121,19 @@ export default function ChatView({ channel, userId, perms, members, myDisplayNam
     };
   }, [channel.id, userId]);
 
+  // Decrypt message bodies on this device; ciphertext remains in the database and realtime events.
+  useEffect(() => {
+    let cancelled = false;
+    void Promise.all(messages.map(async (message) => {
+      try {
+        return { ...message, content: await decryptMessageForCurrentDevice(message.content) };
+      } catch {
+        return { ...message, content: '[Unable to decrypt on this device]' };
+      }
+    })).then((rows) => { if (!cancelled) setDisplayMessages(rows); });
+    return () => { cancelled = true; };
+  }, [messages]);
+
   // Keep the view pinned to the newest message unless the user has scrolled up.
   useLayoutEffect(() => {
     if (stickToBottom.current && scrollRef.current) {
@@ -148,12 +163,14 @@ export default function ChatView({ channel, userId, perms, members, myDisplayNam
   }, [channel.id, messages]);
 
   const send = async (content: string, attachments: Attachment[], embeds: Embed[]) => {
+    const recipientIds = [...new Set([userId, ...members.map((member) => member.user_id)])];
+    const encryptedContent = await encryptMessageForUsers(content, recipientIds);
     const { error } = await supabase.from('messages').insert({
       channel_id: channel.id,
       author_id: userId,
-      content,
+      content: encryptedContent,
       attachments,
-      embeds,
+      embeds: [],
       reply_to: replyTo?.id ?? null,
     });
     if (error) throw error;
@@ -165,9 +182,10 @@ export default function ChatView({ channel, userId, perms, members, myDisplayNam
     if (!editing) return;
     const text = editing.text.trim();
     if (!text) return;
+    const encryptedContent = await encryptMessageForUsers(text, [...new Set([userId, ...members.map((member) => member.user_id)])]);
     const { error } = await supabase
       .from('messages')
-      .update({ content: text, edited_at: new Date().toISOString() })
+      .update({ content: encryptedContent, edited_at: new Date().toISOString() })
       .eq('id', editing.id);
     if (error) {
       // Usually a blocked word or a rate limit. Keep the editor open so the text can be fixed.
@@ -234,7 +252,7 @@ export default function ChatView({ channel, userId, perms, members, myDisplayNam
   useEffect(() => cancelPress, []);
 
   // Group consecutive messages from the same author so the feed reads like Discord.
-  const rendered = messages.map((m, i) => {
+  const rendered = displayMessages.map((m, i) => {
     const prev = messages[i - 1];
     const continuation =
       !!prev &&
@@ -278,7 +296,9 @@ export default function ChatView({ channel, userId, perms, members, myDisplayNam
           </div>
         )}
 
-        {rendered.map(({ m, continuation }) => {
+        {displayMessages.map((m, i) => {
+          const prev = displayMessages[i - 1];
+          const continuation = !!prev && prev.author_id === m.author_id && !m.reply_to && new Date(m.created_at).getTime() - new Date(prev.created_at).getTime() < GROUP_WINDOW_MS;
           const author = profiles.get(m.author_id);
           const name = author?.display_name || author?.username || 'Unknown user';
           const isEditing = editing?.id === m.id;
