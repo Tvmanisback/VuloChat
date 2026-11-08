@@ -1,3 +1,5 @@
+import { supabase } from './supabase';
+
 /**
  * VuloChat E2EE device-key foundation.
  *
@@ -137,4 +139,27 @@ export async function decryptForDevice(envelope: EncryptedEnvelope): Promise<str
     { name: 'AES-GCM', iv: base64ToBytes(envelope.iv), additionalData: salt }, key, ciphertext,
   );
   return decoder.decode(plaintext);
+}
+
+/** Publishes only this device's public key so peers can encrypt to it. */
+export async function registerDeviceIdentity(userId: string): Promise<void> {
+  const identity = await getDeviceIdentity();
+  const { data, error } = await supabase
+    .from('e2ee_devices')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('public_key', identity.publicKey)
+    .is('revoked_at', null)
+    .maybeSingle();
+  if (error) throw error;
+  if (data) {
+    await supabase.from('e2ee_devices').update({ last_seen_at: new Date().toISOString() }).eq('id', data.id);
+    return;
+  }
+  const { error: insertError } = await supabase.from('e2ee_devices').insert({
+    user_id: userId,
+    device_name: navigator.userAgent.slice(0, 120) || 'Browser',
+    public_key: identity.publicKey,
+  });
+  if (insertError) throw insertError;
 }
