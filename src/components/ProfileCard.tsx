@@ -46,10 +46,10 @@ export default function ProfileCard({ profile, onClose }: { profile: Profile; on
         {/* Banner: the uploaded image, or a plain gradient when none is set. GIF banners play as they load. */}
         <div className="relative h-28 w-full overflow-hidden" style={{ background: bannerBackground(profile.accent_color) }}>
           {profile.banner_url && <img src={profile.banner_url} alt="" className="h-full w-full object-cover" />}
+          <ProfileDecorationOverlay decorationId={profile.profile_decoration_id} />
         </div>
 
         <div className="relative isolate px-4 pb-4">
-          <ProfileDecorationOverlay decorationId={profile.profile_decoration_id} />
           <div className="relative z-10 -mt-10 mb-2 w-fit rounded-full bg-vulo-rail p-1.5">
             <Avatar profile={profile} size="lg" status={profile.status} ringClass="border-vulo-rail" />
           </div>
