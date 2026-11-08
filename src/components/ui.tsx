@@ -1,5 +1,5 @@
 import { useEffect, type ButtonHTMLAttributes, type CSSProperties, type ReactNode } from 'react';
-import { decorationSrc, useDecorations } from '../lib/decorations';
+import { decorationSrc, TINT_SUPPORTED, useDecorations } from '../lib/decorations';
 import type { Profile, UserStatus } from '../lib/types';
 
 export function Logo({ className = 'h-10 w-10' }: { className?: string }) {
@@ -50,6 +50,9 @@ const STATUS_DECORATION: Record<UserStatus, CSSProperties> = {
   offline: { filter: 'grayscale(1)', opacity: 0.6 },
 };
 
+// Pictures are drawn larger than the avatar so the picture sits inside the ring.
+const FRAME_CLASS = 'pointer-events-none absolute left-1/2 top-1/2 h-[136%] w-[136%] max-w-none -translate-x-1/2 -translate-y-1/2';
+
 export function Avatar({
   profile,
   size = 'md',
@@ -58,7 +61,7 @@ export function Avatar({
   className = '',
   speaking = false,
 }: {
-  profile: Pick<Profile, 'id' | 'username' | 'display_name' | 'avatar_url' | 'decoration_id'> | null;
+  profile: (Pick<Profile, 'id' | 'username' | 'display_name' | 'avatar_url' | 'decoration_id'> & { accent_color?: string | null }) | null;
   size?: 'xs' | 'sm' | 'md' | 'lg';
   status?: UserStatus;
   ringClass?: string;
@@ -72,6 +75,10 @@ export function Avatar({
   const dims = { xs: 'h-6 w-6 text-[10px]', sm: 'h-8 w-8 text-xs', md: 'h-10 w-10 text-sm', lg: 'h-20 w-20 text-2xl' }[size];
   const decorationId = profile?.decoration_id ?? null;
   const decoration = decorationId ? decorations.find((d) => d.id === decorationId) : undefined;
+  // A tintable decoration takes the owner's accent colour: the frame becomes a mask filled with it.
+  const tinted = !!decoration?.tintable && !!profile?.accent_color && TINT_SUPPORTED;
+  const frameMask = decoration ? `url("${decorationSrc(decoration)}")` : undefined;
+  const voicePulse = decoration?.reacts_to_voice && speaking ? 'animate-pulse' : '';
   return (
     <div className={`relative shrink-0 ${className}`}>
       {profile?.avatar_url ? (
@@ -84,18 +91,33 @@ export function Avatar({
           {name.slice(0, 1).toUpperCase()}
         </div>
       )}
-      {decoration && (
-        // Frames are drawn larger than the picture so the picture sits inside the ring.
-        <img
-          src={decorationSrc(decoration)}
-          alt=""
-          aria-hidden="true"
-          style={status ? STATUS_DECORATION[status] : undefined}
-          className={`pointer-events-none absolute left-1/2 top-1/2 h-[136%] w-[136%] max-w-none -translate-x-1/2 -translate-y-1/2 ${
-            decoration.reacts_to_voice && speaking ? 'animate-pulse' : ''
-          }`}
-        />
-      )}
+      {decoration &&
+        (tinted ? (
+          <span
+            aria-hidden="true"
+            style={{
+              ...(status ? STATUS_DECORATION[status] : {}),
+              background: profile?.accent_color ?? undefined,
+              WebkitMaskImage: frameMask,
+              maskImage: frameMask,
+              WebkitMaskSize: 'contain',
+              maskSize: 'contain',
+              WebkitMaskRepeat: 'no-repeat',
+              maskRepeat: 'no-repeat',
+              WebkitMaskPosition: 'center',
+              maskPosition: 'center',
+            }}
+            className={`${FRAME_CLASS} ${voicePulse}`}
+          />
+        ) : (
+          <img
+            src={decorationSrc(decoration)}
+            alt=""
+            aria-hidden="true"
+            style={status ? STATUS_DECORATION[status] : undefined}
+            className={`${FRAME_CLASS} ${voicePulse}`}
+          />
+        ))}
       {status && <StatusDot status={status} ring={ringClass} />}
     </div>
   );

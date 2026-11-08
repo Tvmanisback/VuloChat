@@ -28,6 +28,22 @@ export default function MemberList({ members, roles, memberRoles, ownerId, onOpe
     return colorFor;
   }, [members, roles, memberRoles, ownerId]);
 
+  // A role's decoration shows on the avatars of its members in this server. Each member's
+  // highest role that has a decoration wins.
+  const roleDecoration = useMemo(() => {
+    const byId = new Map<string, Role>(roles.map((r) => [r.id, r] as const));
+    const found = new Map<string, string>();
+    for (const m of members) {
+      const mine = memberRoles
+        .filter((mr) => mr.user_id === m.user_id && mr.server_id === m.server_id)
+        .map((mr) => byId.get(mr.role_id))
+        .filter((r): r is Role => !!r && !r.is_default && !!r.decoration_id)
+        .sort((a, b) => b.position - a.position);
+      if (mine[0]?.decoration_id) found.set(m.user_id, mine[0].decoration_id);
+    }
+    return found;
+  }, [members, roles, memberRoles]);
+
   const sorted = [...members].sort((a, b) => {
     const na = (a.profiles?.display_name || a.profiles?.username || '').toLowerCase();
     const nb = (b.profiles?.display_name || b.profiles?.username || '').toLowerCase();
@@ -47,6 +63,8 @@ export default function MemberList({ members, roles, memberRoles, ownerId, onOpe
             const p = m.profiles;
             const name = m.nickname || p?.display_name || p?.username || 'Unknown';
             const status: UserStatus = p?.status ?? 'offline';
+            const roleDeco = roleDecoration.get(m.user_id);
+            const avatarProfile = p && roleDeco ? { ...p, decoration_id: roleDeco } : (p ?? null);
             return (
               <li key={m.user_id}>
                 <button
@@ -57,7 +75,7 @@ export default function MemberList({ members, roles, memberRoles, ownerId, onOpe
                 >
                   <NameplateBackdrop nameplateId={p?.nameplate_id} />
                   <span className="relative flex w-full min-w-0 items-center gap-3">
-                    <Avatar profile={p ?? null} size="sm" status={status} ringClass="border-vulo-side" />
+                    <Avatar profile={avatarProfile} size="sm" status={status} ringClass="border-vulo-side" />
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-sm font-medium" style={{ color: roleColor.get(m.user_id) ?? '#dbdee1' }}>
                         {name}

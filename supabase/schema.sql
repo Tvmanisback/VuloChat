@@ -921,3 +921,16 @@ insert into public.nameplates (id, name, asset_path, animated, required_badge_id
   ('a0000000-0000-4000-8000-000000000020', 'Giving Tree', 'nameplates/giving-tree.svg', false, null, 19),
   ('a0000000-0000-4000-8000-000000000021', 'Beta tester', 'nameplates/beta-tester.svg', false, 'b0000000-0000-4000-8000-000000000003', 100)
 on conflict (id) do nothing;
+
+-- Role decorations and accent tint.
+-- A role can carry an avatar decoration that members of that server see in the member list.
+alter table public.server_roles add column if not exists decoration_id uuid references public.avatar_decorations(id) on delete set null;
+-- Tintable decorations are drawn in the owner's accent colour.
+alter table public.avatar_decorations add column if not exists tintable boolean not null default false;
+update public.avatar_decorations set tintable = true where id in (
+  'd0000000-0000-4000-8000-000000000001', -- Violet ring
+  'd0000000-0000-4000-8000-000000000002', -- Twin ring
+  'd0000000-0000-4000-8000-000000000006', -- Halo
+  'd0000000-0000-4000-8000-000000000012', -- Heart ring
+  'd0000000-0000-4000-8000-000000000013'  -- Pixel border
+);

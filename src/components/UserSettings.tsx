@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { useAuth } from '../lib/auth';
 import { supabase } from '../lib/supabase';
-import { loadDecorations, useDecorations } from '../lib/decorations';
+import { loadDecorations, TINT_SUPPORTED, useDecorations } from '../lib/decorations';
 import { loadNameplates, nameplateSrc, useNameplates } from '../lib/nameplates';
 import { useLockReasons } from '../lib/cosmetics';
 import { useProfileBadges } from '../lib/badges';
@@ -409,7 +409,7 @@ function DecorationTab() {
             <DecorationOption
               key={d.id}
               label={d.name}
-              hint={reason ?? (d.reacts_to_voice ? 'Reacts to voice' : d.animated ? 'Animated' : undefined)}
+              hint={reason ?? (d.reacts_to_voice ? 'Reacts to voice' : d.animated ? 'Animated' : d.tintable && TINT_SUPPORTED ? 'Takes your accent colour' : undefined)}
               selected={profile.decoration_id === d.id}
               disabled={pending || !!reason}
               onSelect={() => void choose(d.id)}

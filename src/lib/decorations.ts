@@ -39,3 +39,9 @@ export function useDecorations(): AvatarDecoration[] {
 export function decorationSrc(d: Pick<AvatarDecoration, 'asset_path'>): string {
   return `${import.meta.env.BASE_URL}${d.asset_path}`;
 }
+
+/**
+ * Tinting draws a decoration as a mask, and the desktop app's pages open from file://,
+ * where browsers refuse that mask. There the original art is shown instead.
+ */
+export const TINT_SUPPORTED = typeof window !== 'undefined' && window.location.protocol !== 'file:';

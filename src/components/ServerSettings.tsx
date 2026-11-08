@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase';
 import { PERM, PERM_LABELS, hasPerm } from '../lib/permissions';
 import { loadEmojis, useEmojis, type CustomEmoji } from '../lib/emojis';
 import { loadStickers, useStickers, type CustomSticker } from '../lib/stickers';
+import { useDecorations } from '../lib/decorations';
 import type { Role } from '../lib/types';
 import type { ServerData } from '../lib/useServer';
 import { Button, ErrorText, Field, inputClass } from './ui';
@@ -182,7 +183,13 @@ function RolesTab({ data }: { data: ServerData }) {
 function RoleEditor({ role, data, onDeleted }: { role: Role; data: ServerData; onDeleted: () => void }) {
   const [name, setName] = useState(role.name);
   const [color, setColor] = useState(role.color);
+  const [decorationId, setDecorationId] = useState<string | null>(role.decoration_id);
   const [perms, setPerms] = useState(role.permissions);
+  const decorations = useDecorations();
+  // Role decorations are shared by everyone with the role, so they cannot be badge-locked or ended.
+  const choices = decorations.filter(
+    (d) => d.id === role.decoration_id || (!d.required_badge_id && (!d.available_until || Date.parse(d.available_until) > Date.now())),
+  );
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
 
@@ -190,7 +197,7 @@ function RoleEditor({ role, data, onDeleted }: { role: Role; data: ServerData; o
 
   const save = async () => {
     setError(null);
-    const patch: Partial<Role> = { permissions: perms, color };
+    const patch: Partial<Role> = { permissions: perms, color, decoration_id: decorationId };
     if (!role.is_default) patch.name = name.trim();
     const { error: err } = await supabase.from('server_roles').update(patch).eq('id', role.id);
     if (err) return setError(err.message);
@@ -216,6 +223,19 @@ function RoleEditor({ role, data, onDeleted }: { role: Role; data: ServerData; o
           <input type="color" value={color} onChange={(e) => setColor(e.target.value)} className="h-[42px] w-full cursor-pointer rounded bg-vulo-rail p-1" />
         </Field>
       </div>
+
+      {!role.is_default && (
+        <Field label="Member decoration" hint="Shown around the avatar of everyone with this role in this server. Choose None to show each member's own decoration.">
+          <select className={inputClass} value={decorationId ?? ''} onChange={(e) => setDecorationId(e.target.value || null)}>
+            <option value="">None</option>
+            {choices.map((d) => (
+              <option key={d.id} value={d.id}>
+                {d.name}
+              </option>
+            ))}
+          </select>
+        </Field>
+      )}
 
       <p className="mb-2 text-xs font-bold uppercase tracking-wide text-vulo-muted">Permissions</p>
       <ul className="mb-5 divide-y divide-vulo-line rounded bg-vulo-rail">

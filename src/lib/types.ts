@@ -27,6 +27,8 @@ export interface AvatarDecoration {
   required_badge_id: string | null;
   available_until: string | null;
   reacts_to_voice: boolean;
+  /** Drawn in the owner's accent colour instead of its own colours. */
+  tintable: boolean;
 }
 
 export interface Nameplate {
@@ -64,6 +66,8 @@ export interface Role {
   permissions: number;
   position: number;
   is_default: boolean;
+  /** Members see this decoration in the member list of this server. */
+  decoration_id: string | null;
 }
 
 export interface MemberRow {
