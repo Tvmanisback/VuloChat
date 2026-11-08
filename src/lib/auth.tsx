@@ -32,6 +32,7 @@ interface AuthState {
         | 'animated_banner'
         | 'custom_status'
         | 'accent_color'
+        | 'visible_badge_ids'
       >
     >,
   ) => Promise<void>;
