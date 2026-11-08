@@ -57,3 +57,38 @@ export function useBadgeCatalog(): Badge[] {
 
   return all;
 }
+
+
+/** Badges owned by a set of profiles, keyed by profile ID. */
+export function useBadgesForProfiles(profileIds: string[]): Record<string, Badge[]> {
+  const [byProfile, setByProfile] = useState<Record<string, Badge[]>>({});
+  const key = [...new Set(profileIds)].sort().join(',');
+
+  useEffect(() => {
+    let alive = true;
+    const ids = key ? key.split(',') : [];
+    setByProfile({});
+    if (!ids.length) return;
+    supabase
+      .from('profile_badges')
+      .select('profile_id,badges(*)')
+      .in('profile_id', ids)
+      .then(({ data, error }) => {
+        if (!alive) return;
+        if (error) {
+          console.error('chat badges load failed', error.message);
+          return;
+        }
+        const next: Record<string, Badge[]> = {};
+        for (const row of (data as unknown as { profile_id: string; badges: Badge | null }[] | null) ?? []) {
+          if (!row.badges) continue;
+          (next[row.profile_id] ??= []).push(row.badges);
+        }
+        for (const list of Object.values(next)) list.sort((a, b) => a.position - b.position);
+        setByProfile(next);
+      });
+    return () => { alive = false; };
+  }, [key]);
+
+  return byProfile;
+}
