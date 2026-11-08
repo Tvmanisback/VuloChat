@@ -30,7 +30,7 @@ export default function ProfileDecorationOverlay({
       alt=""
       aria-hidden="true"
       className={isPortraitFrame
-        ? 'pointer-events-none absolute inset-0 z-20 h-full w-full object-contain'
+        ? 'pointer-events-none absolute inset-0 z-0 h-full w-full object-contain'
         : 'pointer-events-none absolute left-0 top-0 z-10 h-28 w-full object-contain'}
     />
   );
