@@ -13,7 +13,8 @@ Free chat for servers, channels, voice, and direct messages. Use it in your brow
 - **Message friends privately.** Send, accept, or decline friend requests, then chat in direct messages.
 - **Set your status** to online, idle (after 5 minutes), do not disturb, or invisible.
 - **Manage roles.** If you have the permission, create colored roles, assign them to members, or remove members.
-- **Customize everything in Settings:** your account, appearance, voice and video devices, and keybinds. Server owners and admins can edit server overview, roles, and members.
+- **Customize everything in Settings:** your account, avatar decoration, appearance, voice and video devices, and keybinds. Server owners and admins can edit server overview, roles, and members.
+- **Pick an avatar decoration.** Choose a frame from the catalog in Settings → Avatar Decoration. It shows around your avatar everywhere you appear, including in animated versions.
 - **Use the Windows app** for a window with its own controls, a tray icon that keeps VuloChat running, global hotkeys, and desktop notifications.
 - **Use the Android app.** Swipe out the menu for servers and channels. The back button closes open panels before it leaves the app.
 

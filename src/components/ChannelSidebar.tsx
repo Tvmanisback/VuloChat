@@ -27,6 +27,8 @@ export default function ChannelSidebar(props: Props) {
   const { server, channels, voiceStates, members, perms, isOwner, activeChannelId } = props;
   const voice = useVoice();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  const toggleCategory = (id: string) => setCollapsed((c) => ({ ...c, [id]: !c[id] }));
 
   const canManage = hasPerm(perms, PERM.MANAGE_CHANNELS);
   const canInvite = hasPerm(perms, PERM.CREATE_INVITE);
@@ -115,7 +117,17 @@ export default function ChannelSidebar(props: Props) {
           return (
             <section key={cat.id}>
               <div className="group mb-1 flex items-center justify-between px-1">
-                <h3 className="text-xs font-semibold uppercase tracking-wide text-vulo-muted group-hover:text-vulo-text">{cat.name}</h3>
+                <h3>
+                  <button
+                    type="button"
+                    onClick={() => toggleCategory(cat.id)}
+                    aria-expanded={!collapsed[cat.id]}
+                    className="flex min-w-0 items-center gap-0.5 text-xs font-semibold uppercase tracking-wide text-vulo-muted hover:text-vulo-text"
+                  >
+                    <Icon name="chevronDown" className={`h-3 w-3 shrink-0 transition-transform ${collapsed[cat.id] ? '-rotate-90' : ''}`} />
+                    <span className="truncate">{cat.name}</span>
+                  </button>
+                </h3>
                 {canManage && (
                   <button
                     onClick={() => props.onCreateChannel(cat.id)}
@@ -126,7 +138,7 @@ export default function ChannelSidebar(props: Props) {
                   </button>
                 )}
               </div>
-              <div className="space-y-0.5">{kids.map(renderChannel)}</div>
+              {!collapsed[cat.id] && <div className="space-y-0.5">{kids.map(renderChannel)}</div>}
             </section>
           );
         })}
