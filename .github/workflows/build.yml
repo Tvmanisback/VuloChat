@@ -139,11 +139,18 @@ jobs:
           VULO_KEY_PASSWORD: ${{ secrets.VULO_KEY_PASSWORD }}
         run: |
           chmod +x gradlew
-          if [ -n "$VULO_KEYSTORE_PATH" ]; then
-            ./gradlew assembleRelease --no-daemon
-          else
-            ./gradlew assembleDebug --no-daemon
-          fi
+          # The Gradle download from services.gradle.org can time out on the runner,
+          # so allow a longer timeout and retry a few times.
+          sed -i '/^networkTimeout=/d' gradle/wrapper/gradle-wrapper.properties
+          echo "networkTimeout=120000" >> gradle/wrapper/gradle-wrapper.properties
+          TASK=assembleDebug
+          if [ -n "$VULO_KEYSTORE_PATH" ]; then TASK=assembleRelease; fi
+          for attempt in 1 2 3; do
+            if ./gradlew "$TASK" --no-daemon; then exit 0; fi
+            echo "Gradle attempt $attempt failed. Retrying in 15 seconds."
+            sleep 15
+          done
+          exit 1
 
       - name: Collect APK
         run: |
