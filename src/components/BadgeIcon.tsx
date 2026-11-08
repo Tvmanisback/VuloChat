@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { Badge } from '../lib/types';
 
 /** A badge shown as an icon only. Clicking it opens a small panel with the badge name and what it means. */
-export default function BadgeIcon({ badge }: { badge: Badge }) {
+export default function BadgeIcon({ badge, size = 'normal' }: { badge: Badge; size?: 'normal' | 'small' }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLSpanElement>(null);
 
@@ -29,10 +29,14 @@ export default function BadgeIcon({ badge }: { badge: Badge }) {
         onClick={() => setOpen((o) => !o)}
         aria-label={badge.name}
         aria-expanded={open}
-        className="flex h-7 w-7 items-center justify-center rounded-full bg-vulo-side text-base transition hover:bg-vulo-hover focus-visible:ring-2 focus-visible:ring-vulo-accent"
+        className={`flex items-center justify-center rounded-full bg-vulo-side transition hover:bg-vulo-hover focus-visible:ring-2 focus-visible:ring-vulo-accent ${size === 'small' ? 'h-5 w-5' : 'h-7 w-7'}`}
         style={{ boxShadow: `inset 0 0 0 2px ${badge.color}` }}
       >
-        <span aria-hidden="true">{badge.emoji}</span>
+        {badge.icon_path ? (
+          <img src={`${import.meta.env.BASE_URL}${badge.icon_path}`} alt="" aria-hidden="true" className={size === 'small' ? 'h-4 w-4' : 'h-5 w-5'} />
+        ) : (
+          <span aria-hidden="true">{badge.emoji}</span>
+        )}
       </button>
       {open && (
         <span
