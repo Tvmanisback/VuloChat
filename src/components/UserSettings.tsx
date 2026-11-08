@@ -330,6 +330,12 @@ function ProfileTab() {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  const [visibleBadges, setVisibleBadges] = useState<string[]>(profile?.visible_badge_ids ?? []);
+  const [savingBadges, setSavingBadges] = useState(false);
+
+  useEffect(() => {
+    setVisibleBadges(profile?.visible_badge_ids ?? []);
+  }, [profile?.id, profile?.visible_badge_ids?.join(',')]);
 
   if (!profile) return null;
 
@@ -471,15 +477,47 @@ function ProfileTab() {
       </div>
 
       <div className="mt-8">
-        <p className="mb-3 text-xs font-bold uppercase tracking-wide text-vulo-muted">Badges</p>
+        <p className="mb-1 text-xs font-bold uppercase tracking-wide text-vulo-muted">Badges shown in chat</p>
+        <p className="mb-3 text-sm text-vulo-muted">Choose which of your earned badges appear beside your name when you send messages. Your full badge collection remains visible on your profile.</p>
         {badges.length > 0 ? (
-          <ul className="flex flex-wrap gap-2">
-            {badges.map((b) => (
-              <li key={b.id}>
-                <BadgeIcon badge={b} />
-              </li>
-            ))}
-          </ul>
+          <div className="space-y-2">
+            {badges.map((b) => {
+              const checked = visibleBadges.includes(b.id);
+              return (
+                <label key={b.id} className="flex cursor-pointer items-center gap-3 rounded-lg bg-vulo-side px-3 py-3 hover:bg-vulo-hover">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 accent-[#7c5cff]"
+                    checked={checked}
+                    disabled={savingBadges}
+                    onChange={async (e) => {
+                      const next = e.target.checked
+                        ? [...visibleBadges, b.id]
+                        : visibleBadges.filter((id) => id !== b.id);
+                      setVisibleBadges(next);
+                      setSavingBadges(true);
+                      setError(null);
+                      try {
+                        await updateProfile({ visible_badge_ids: next });
+                      } catch (err) {
+                        setVisibleBadges(visibleBadges);
+                        setError(err instanceof Error ? err.message : 'Could not save badge visibility.');
+                      } finally {
+                        setSavingBadges(false);
+                      }
+                    }}
+                  />
+                  <BadgeIcon badge={b} />
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-medium text-vulo-bright">{b.name}</span>
+                    {b.description && <span className="block text-xs text-vulo-muted">{b.description}</span>}
+                  </span>
+                  <span className="text-xs text-vulo-muted">{checked ? 'Shown' : 'Hidden'}</span>
+                </label>
+              );
+            })}
+            {savingBadges && <p className="text-xs text-vulo-muted">Saving badge preferences…</p>}
+          </div>
         ) : (
           <p className="text-sm text-vulo-muted">No badges yet. VuloChat grants badges to members.</p>
         )}
