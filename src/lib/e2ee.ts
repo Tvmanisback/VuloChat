@@ -163,3 +163,59 @@ export async function registerDeviceIdentity(userId: string): Promise<void> {
   });
   if (insertError) throw insertError;
 }
+
+
+export interface EncryptedMessagePayload {
+  __vulo_e2ee: 1;
+  algorithm: 'P-256-HKDF-SHA256-AES-256-GCM';
+  recipients: Array<{ userId: string; publicKey: string; envelope: EncryptedEnvelope }>;
+}
+
+/**
+ * Encrypts a message separately for every active device belonging to the
+ * conversation participants. Fails closed if any participant has no device.
+ */
+export async function encryptMessageForUsers(plaintext: string, userIds: string[]): Promise<string> {
+  const identity = await getDeviceIdentity();
+  const uniqueIds = [...new Set(userIds)];
+  if (!uniqueIds.length) throw new Error('No E2EE recipients were supplied.');
+  const { data, error } = await supabase
+    .from('e2ee_devices')
+    .select('user_id, public_key')
+    .in('user_id', uniqueIds)
+    .is('revoked_at', null);
+  if (error) throw error;
+  const devices = (data ?? []) as Array<{ user_id: string; public_key: string }>;
+  const missing = uniqueIds.filter((id) => !devices.some((device) => device.user_id === id));
+  if (missing.length) {
+    throw new Error('E2EE is required, but a conversation member has not registered a device yet. Ask them to sign in on their device first.');
+  }
+  if (!devices.some((device) => device.public_key === identity.publicKey)) {
+    throw new Error('This device is not registered for E2EE. Sign out and back in, then try again.');
+  }
+  const recipients = await Promise.all(devices.map(async (device) => ({
+    userId: device.user_id,
+    publicKey: device.public_key,
+    envelope: await encryptForDevice(plaintext, device.public_key),
+  })));
+  return JSON.stringify({
+    __vulo_e2ee: 1,
+    algorithm: 'P-256-HKDF-SHA256-AES-256-GCM',
+    recipients,
+  } satisfies EncryptedMessagePayload);
+}
+
+/** Decrypts E2EE message payloads for this browser; legacy plaintext remains marked as legacy. */
+export async function decryptMessageForCurrentDevice(value: string): Promise<string> {
+  let parsed: unknown;
+  try { parsed = JSON.parse(value); } catch { return value; }
+  if (!parsed || typeof parsed !== 'object' || !('__vulo_e2ee' in parsed)) return value;
+  const payload = parsed as EncryptedMessagePayload;
+  if (payload.__vulo_e2ee !== 1 || !Array.isArray(payload.recipients)) {
+    throw new Error('Unsupported E2EE message payload.');
+  }
+  const identity = await getDeviceIdentity();
+  const recipient = payload.recipients.find((entry) => entry.publicKey === identity.publicKey);
+  if (!recipient) throw new Error('This message was not encrypted for this device.');
+  return decryptForDevice(recipient.envelope);
+}
