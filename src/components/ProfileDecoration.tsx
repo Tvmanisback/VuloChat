@@ -3,7 +3,7 @@ import { loadProfileDecorations, profileDecorationSrc, useProfileDecorations } f
 import { useSettings } from '../lib/settings';
 
 /**
- * Adds a subtle animated frame around the complete profile card. The parent must be relative and
+ * Adds a badge-specific decorative frame around the profile information panel. The parent must be relative and
  * overflow-hidden.
  */
 export default function ProfileDecorationOverlay({
