@@ -9,6 +9,7 @@ import { AttachmentList, EmbedList } from './ChatView';
 import { Avatar } from './ui';
 import ReportDialog, { type ReportTarget } from './ReportDialog';
 import BadgeIcon from './BadgeIcon';
+import { decryptMessageForCurrentDevice, encryptMessageForUsers } from '../lib/e2ee';
 
 interface Props {
   userId: string;
@@ -22,6 +23,7 @@ function inPair(row: Pick<DirectMessage, 'sender_id' | 'recipient_id'>, me: stri
 export default function DMChat({ userId, friend }: Props) {
   const [messages, setMessages] = useState<DirectMessage[]>([]);
   const [loading, setLoading] = useState(true);
+  const [displayMessages, setDisplayMessages] = useState<DirectMessage[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const stick = useRef(true);
   const [reporting, setReporting] = useState<ReportTarget | null>(null);
@@ -70,6 +72,19 @@ export default function DMChat({ userId, friend }: Props) {
     };
   }, [userId, friend.id]);
 
+  // Decrypt locally after loading/realtime updates. Supabase only receives ciphertext.
+  useEffect(() => {
+    let cancelled = false;
+    void Promise.all(messages.map(async (message) => {
+      try {
+        return { ...message, content: await decryptMessageForCurrentDevice(message.content) };
+      } catch {
+        return { ...message, content: '[Unable to decrypt on this device]' };
+      }
+    })).then((rows) => { if (!cancelled) setDisplayMessages(rows); });
+    return () => { cancelled = true; };
+  }, [messages]);
+
   // Mark messages from this friend as read whenever the conversation is open.
   useEffect(() => {
     if (loading) return;
@@ -86,10 +101,11 @@ export default function DMChat({ userId, friend }: Props) {
   }, [messages]);
 
   const send = async (content: string, attachments: Attachment[], embeds: Embed[]) => {
+    const encryptedContent = await encryptMessageForUsers(content, [userId, friend.id]);
     const { error } = await supabase.from('direct_messages').insert({
       sender_id: userId,
       recipient_id: friend.id,
-      content,
+      content: encryptedContent,
       attachments,
       embeds,
     });
@@ -118,7 +134,7 @@ export default function DMChat({ userId, friend }: Props) {
         aria-live="polite"
       >
         {loading && <p className="px-4 text-sm text-vulo-muted">Loading conversation…</p>}
-        {!loading && messages.length === 0 && (
+        {!loading && displayMessages.length === 0 && (
           <div className="px-4 pb-6 pt-10">
             <Avatar profile={friend} size="lg" />
             <h3 className="mt-3 text-2xl font-bold text-vulo-bright">{name}</h3>
@@ -126,7 +142,7 @@ export default function DMChat({ userId, friend }: Props) {
           </div>
         )}
 
-        {messages.map((m, i) => {
+        {displayMessages.map((m, i) => {
           const mine = m.sender_id === userId;
           const prev = messages[i - 1];
           const continuation = !!prev && prev.sender_id === m.sender_id;
