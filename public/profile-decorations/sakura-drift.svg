@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 340 112" width="340" height="112" preserveAspectRatio="xMidYMid slice">
+  <defs><path id="petal" d="M0 0 C4 -5 9 -3 10 0 C9 4 4 6 0 0Z" fill="#fbcfe8"/></defs>
+  <use href="#petal" transform="translate(153.8 62.7) rotate(333) scale(1.27)" opacity="0.68"/>
+  <use href="#petal" transform="translate(199.7 20.7) rotate(184) scale(1.40)" opacity="0.81"/>
+  <use href="#petal" transform="translate(32.0 34.0) rotate(33) scale(1.55)" opacity="0.76"/>
+  <use href="#petal" transform="translate(14.2 110.0) rotate(347) scale(1.42)" opacity="0.73"/>
+  <use href="#petal" transform="translate(53.5 1.7) rotate(190) scale(0.95)" opacity="0.54"/>
+  <use href="#petal" transform="translate(82.3 3.4) rotate(167) scale(1.25)" opacity="0.83"/>
+  <use href="#petal" transform="translate(176.5 71.7) rotate(180) scale(1.43)" opacity="0.66"/>
+  <use href="#petal" transform="translate(94.6 111.7) rotate(358) scale(1.57)" opacity="0.77"/>
+  <use href="#petal" transform="translate(107.2 25.7) rotate(104) scale(0.96)" opacity="0.79"/>
+  <use href="#petal" transform="translate(136.1 94.8) rotate(139) scale(1.67)" opacity="0.83"/>
+  <use href="#petal" transform="translate(0.2 23.5) rotate(328) scale(1.28)" opacity="0.89"/>
+  <use href="#petal" transform="translate(135.1 8.2) rotate(227) scale(1.52)" opacity="0.57"/>
+  <use href="#petal" transform="translate(29.6 37.2) rotate(347) scale(1.51)" opacity="0.50"/>
+  <use href="#petal" transform="translate(83.8 11.3) rotate(22) scale(1.54)" opacity="0.53"/>
+  <use href="#petal" transform="translate(190.2 50.1) rotate(69) scale(1.49)" opacity="0.51"/>
+  <use href="#petal" transform="translate(218.9 13.0) rotate(151) scale(1.07)" opacity="0.57"/>
+  <use href="#petal" transform="translate(330.1 90.0) rotate(109) scale(1.61)" opacity="0.54"/>
+  <use href="#petal" transform="translate(134.1 95.7) rotate(231) scale(0.98)" opacity="0.90"/>
+</svg>

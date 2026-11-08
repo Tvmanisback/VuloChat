@@ -27,6 +27,7 @@ interface AuthState {
         | 'animated_avatar'
         | 'decoration_id'
         | 'nameplate_id'
+        | 'profile_decoration_id'
         | 'banner_url'
         | 'animated_banner'
         | 'custom_status'

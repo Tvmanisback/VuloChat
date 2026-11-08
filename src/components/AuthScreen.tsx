@@ -105,6 +105,24 @@ export default function AuthScreen() {
             {isLogin ? 'Register' : 'Log in'}
           </button>
         </p>
+
+        <nav className="mt-6 flex flex-wrap justify-center gap-x-3 gap-y-1 text-xs text-vulo-muted" aria-label="Legal and help">
+          {[
+            ['terms', 'Terms of Service'],
+            ['privacy', 'Privacy Policy'],
+            ['faq', 'FAQ'],
+          ].map(([id, label]) => (
+            <a
+              key={id}
+              className="hover:text-vulo-text hover:underline"
+              href={`${import.meta.env.BASE_URL}info.html#${id}`}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {label}
+            </a>
+          ))}
+        </nav>
       </div>
     </div>
   );

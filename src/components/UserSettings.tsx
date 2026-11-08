@@ -3,6 +3,7 @@ import { useAuth } from '../lib/auth';
 import { supabase } from '../lib/supabase';
 import { loadDecorations, TINT_SUPPORTED, useDecorations } from '../lib/decorations';
 import { loadNameplates, nameplateSrc, useNameplates } from '../lib/nameplates';
+import { loadProfileDecorations, profileDecorationSrc, useProfileDecorations } from '../lib/profileDecorations';
 import { useLockReasons } from '../lib/cosmetics';
 import { useProfileBadges } from '../lib/badges';
 import { bannerBackground } from '../lib/banner';
@@ -10,18 +11,45 @@ import { updateSettings, useSettings, type Keybinds } from '../lib/settings';
 import { Avatar, Button, ErrorText, Field, inputClass } from './ui';
 import BadgeIcon from './BadgeIcon';
 import NameplateBackdrop from './Nameplate';
+import ProfileDecorationOverlay from './ProfileDecoration';
 import { CUSTOM_DEFAULT, PRESETS, type PresetName, type ThemeColors, type ThemeName } from '../lib/themes';
 
-type Tab = 'account' | 'profile' | 'decorations' | 'nameplates' | 'appearance' | 'voice' | 'keybinds';
+type Tab = 'account' | 'profile' | 'decorations' | 'appearance' | 'accessibility' | 'notifications' | 'voice' | 'keybinds';
+type DecorationSection = 'avatar' | 'nameplate' | 'profile';
 
-const TABS: { id: Tab; label: string }[] = [
-  { id: 'account', label: 'My Account' },
-  { id: 'profile', label: 'Profile' },
-  { id: 'decorations', label: 'Avatar Decoration' },
-  { id: 'nameplates', label: 'Nameplate' },
-  { id: 'appearance', label: 'Appearance' },
-  { id: 'voice', label: 'Voice & Video' },
-  { id: 'keybinds', label: 'Keybinds' },
+const GROUPS: { title: string; tabs: { id: Tab; label: string }[] }[] = [
+  {
+    title: 'User settings',
+    tabs: [
+      { id: 'account', label: 'My Account' },
+      { id: 'profile', label: 'Profile' },
+      { id: 'decorations', label: 'Decorations' },
+    ],
+  },
+  {
+    title: 'App settings',
+    tabs: [
+      { id: 'appearance', label: 'Appearance' },
+      { id: 'accessibility', label: 'Accessibility' },
+      { id: 'notifications', label: 'Notifications' },
+      { id: 'voice', label: 'Voice & Video' },
+      { id: 'keybinds', label: 'Keybinds' },
+    ],
+  },
+];
+
+const DECORATION_SECTIONS: { id: DecorationSection; label: string }[] = [
+  { id: 'avatar', label: 'Avatar' },
+  { id: 'nameplate', label: 'Nameplate' },
+  { id: 'profile', label: 'Profile card' },
+];
+
+// The terms, privacy, facts and FAQ live on their own page, so these links open it in a new tab.
+const HELP_LINKS: { label: string; hash: string }[] = [
+  { label: 'Terms of Service', hash: 'terms' },
+  { label: 'Privacy Policy', hash: 'privacy' },
+  { label: 'Facts', hash: 'facts' },
+  { label: 'FAQ', hash: 'faq' },
 ];
 
 export default function UserSettings({ onClose }: { onClose: () => void }) {
@@ -33,20 +61,45 @@ export default function UserSettings({ onClose }: { onClose: () => void }) {
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
 
+  const navClass = (active: boolean) =>
+    `block w-full rounded px-2 py-1.5 text-left text-[15px] ${
+      active ? 'bg-vulo-active text-vulo-bright' : 'text-vulo-muted hover:bg-vulo-hover hover:text-vulo-text'
+    }`;
+
   return (
     <div className="fixed inset-0 z-50 flex bg-vulo-chat" role="dialog" aria-modal="true" aria-label="User settings">
       <nav className="scroll-thin flex w-64 shrink-0 justify-end overflow-y-auto bg-vulo-side px-4 py-16">
-        <div className="w-44 space-y-0.5">
-          <p className="mb-2 px-2 text-xs font-bold uppercase tracking-wide text-vulo-muted">User settings</p>
-          {TABS.map((t) => (
-            <button
-              key={t.id}
-              onClick={() => setTab(t.id)}
-              className={`block w-full rounded px-2 py-1.5 text-left text-[15px] ${tab === t.id ? 'bg-vulo-active text-vulo-bright' : 'text-vulo-muted hover:bg-vulo-hover hover:text-vulo-text'}`}
-            >
-              {t.label}
-            </button>
+        <div className="w-44">
+          {GROUPS.map((g) => (
+            <div key={g.title} className="mb-5">
+              <p className="mb-2 px-2 text-xs font-bold uppercase tracking-wide text-vulo-muted">{g.title}</p>
+              <div className="space-y-0.5">
+                {g.tabs.map((t) => (
+                  <button key={t.id} onClick={() => setTab(t.id)} aria-current={tab === t.id ? 'page' : undefined} className={navClass(tab === t.id)}>
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+            </div>
           ))}
+
+          <div className="mb-5">
+            <p className="mb-2 px-2 text-xs font-bold uppercase tracking-wide text-vulo-muted">Help</p>
+            <div className="space-y-0.5">
+              {HELP_LINKS.map((l) => (
+                <a
+                  key={l.hash}
+                  href={`${import.meta.env.BASE_URL}info.html#${l.hash}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block w-full rounded px-2 py-1.5 text-left text-[15px] text-vulo-muted hover:bg-vulo-hover hover:text-vulo-text"
+                >
+                  {l.label}
+                </a>
+              ))}
+            </div>
+          </div>
+
           <div className="my-3 h-px bg-vulo-line" />
           <LogoutButton />
         </div>
@@ -56,9 +109,10 @@ export default function UserSettings({ onClose }: { onClose: () => void }) {
         <div className="mx-auto max-w-2xl">
           {tab === 'account' && <AccountTab />}
           {tab === 'profile' && <ProfileTab />}
-          {tab === 'decorations' && <DecorationTab />}
-          {tab === 'nameplates' && <NameplateTab />}
+          {tab === 'decorations' && <DecorationsTab />}
           {tab === 'appearance' && <AppearanceTab />}
+          {tab === 'accessibility' && <AccessibilityTab />}
+          {tab === 'notifications' && <NotificationsTab />}
           {tab === 'voice' && <VoiceTab />}
           {tab === 'keybinds' && <KeybindsTab />}
         </div>
@@ -322,7 +376,7 @@ function ProfileTab() {
 
       <div className="mt-8">
         <p className="mb-3 text-xs font-bold uppercase tracking-wide text-vulo-muted">Profile color</p>
-        <p className="mb-3 text-sm text-vulo-muted">Used for your banner when you have no banner image.</p>
+        <p className="mb-3 text-sm text-vulo-muted">Used for your banner when you have no banner image, and for tinted decorations.</p>
         <div className="flex items-center gap-3">
           <input
             type="color"
@@ -358,7 +412,40 @@ function ProfileTab() {
   );
 }
 
-function DecorationTab() {
+// Every decoration type lives under this one tab. Each sub-tab picks one kind.
+function DecorationsTab() {
+  const [section, setSection] = useState<DecorationSection>('avatar');
+
+  return (
+    <Section title="Decorations">
+      <p className="mb-4 text-sm text-vulo-muted">
+        Artwork you can put around your picture, behind your name, and across your profile card. Some are locked to a badge, and some end on a set date.
+      </p>
+      <div role="tablist" aria-label="Decoration type" className="mb-6 flex gap-1 rounded bg-vulo-side p-1">
+        {DECORATION_SECTIONS.map((s) => (
+          <button
+            key={s.id}
+            type="button"
+            role="tab"
+            aria-selected={section === s.id}
+            onClick={() => setSection(s.id)}
+            className={`flex-1 rounded px-3 py-1.5 text-sm font-medium transition ${
+              section === s.id ? 'bg-vulo-active text-vulo-bright' : 'text-vulo-muted hover:text-vulo-text'
+            }`}
+          >
+            {s.label}
+          </button>
+        ))}
+      </div>
+
+      {section === 'avatar' && <AvatarDecorations />}
+      {section === 'nameplate' && <NameplateDecorations />}
+      {section === 'profile' && <ProfileDecorations />}
+    </Section>
+  );
+}
+
+function AvatarDecorations() {
   const { profile, updateProfile } = useAuth();
   const decorations = useDecorations();
   const reasonFor = useLockReasons(profile?.id ?? null);
@@ -387,9 +474,9 @@ function DecorationTab() {
   const current = decorations.find((d) => d.id === profile.decoration_id);
 
   return (
-    <Section title="Avatar decoration">
+    <>
       <div className="mb-6 flex items-center gap-5 rounded bg-vulo-side p-5">
-        <Avatar profile={profile} size="lg" />
+        <Avatar profile={profile} size="lg" forceDecoration />
         <div className="min-w-0">
           <p className="truncate text-lg font-semibold text-vulo-bright">{current ? current.name : 'No decoration'}</p>
           <p className="text-sm text-vulo-muted">Shown around your avatar everywhere you appear.</p>
@@ -401,7 +488,7 @@ function DecorationTab() {
       <p className="mb-3 text-xs font-bold uppercase tracking-wide text-vulo-muted">Choose a decoration</p>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         <DecorationOption label="None" selected={!profile.decoration_id} disabled={pending} onSelect={() => void choose(null)}>
-          <Avatar profile={{ ...profile, decoration_id: null }} size="md" />
+          <Avatar profile={{ ...profile, decoration_id: null }} size="md" forceDecoration />
         </DecorationOption>
         {decorations.map((d) => {
           const reason = reasonFor(d);
@@ -414,7 +501,7 @@ function DecorationTab() {
               disabled={pending || !!reason}
               onSelect={() => void choose(d.id)}
             >
-              <Avatar profile={{ ...profile, decoration_id: d.id }} size="md" />
+              <Avatar profile={{ ...profile, decoration_id: d.id }} size="md" forceDecoration />
             </DecorationOption>
           );
         })}
@@ -432,11 +519,11 @@ function DecorationTab() {
           </Button>
         </div>
       </div>
-    </Section>
+    </>
   );
 }
 
-function NameplateTab() {
+function NameplateDecorations() {
   const { profile, updateProfile } = useAuth();
   const nameplates = useNameplates();
   const reasonFor = useLockReasons(profile?.id ?? null);
@@ -465,11 +552,11 @@ function NameplateTab() {
   const current = nameplates.find((n) => n.id === profile.nameplate_id);
 
   return (
-    <Section title="Nameplate">
+    <>
       <div className="relative mb-6 overflow-hidden rounded bg-vulo-side p-5">
         <NameplateBackdrop nameplateId={profile.nameplate_id} />
         <div className="relative flex items-center gap-5">
-          <Avatar profile={profile} size="lg" />
+          <Avatar profile={profile} size="lg" forceDecoration />
           <div className="min-w-0">
             <p className="truncate text-lg font-semibold text-vulo-bright">{current ? current.name : 'No nameplate'}</p>
             <p className="text-sm text-vulo-muted">Shown behind your name in the member list and on your profile.</p>
@@ -481,41 +568,112 @@ function NameplateTab() {
 
       <p className="mb-3 text-xs font-bold uppercase tracking-wide text-vulo-muted">Choose a nameplate</p>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <NameplateOption label="None" selected={!profile.nameplate_id} disabled={pending} onSelect={() => void choose(null)} />
+        <ArtOption label="None" selected={!profile.nameplate_id} disabled={pending} onSelect={() => void choose(null)} />
         {nameplates.map((n) => {
           const reason = reasonFor(n);
           return (
-            <NameplateOption
+            <ArtOption
               key={n.id}
               label={n.name}
-              src={nameplateSrc(n)}
               hint={reason ?? (n.animated ? 'Animated' : undefined)}
               selected={profile.nameplate_id === n.id}
               disabled={pending || !!reason}
               onSelect={() => void choose(n.id)}
-            />
+            >
+              <img src={nameplateSrc(n)} alt="" aria-hidden="true" className="absolute inset-0 h-full w-full object-cover" />
+            </ArtOption>
           );
         })}
       </div>
       {nameplates.length === 0 && <p className="mt-3 text-sm text-vulo-muted">Nameplates are loading…</p>}
-    </Section>
+    </>
   );
 }
 
-function NameplateOption({
+function ProfileDecorations() {
+  const { profile, updateProfile } = useAuth();
+  const items = useProfileDecorations();
+  const reasonFor = useLockReasons(profile?.id ?? null);
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    void loadProfileDecorations();
+  }, []);
+
+  if (!profile) return null;
+
+  const choose = async (id: string | null) => {
+    if (pending || id === profile.profile_decoration_id) return;
+    setPending(true);
+    setError(null);
+    try {
+      await updateProfile({ profile_decoration_id: id });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not save.');
+    } finally {
+      setPending(false);
+    }
+  };
+
+  const current = items.find((d) => d.id === profile.profile_decoration_id);
+
+  return (
+    <>
+      <div className="mb-6 overflow-hidden rounded-lg bg-vulo-side">
+        <div className="relative h-28" style={{ background: bannerBackground(profile.accent_color) }}>
+          <ProfileDecorationOverlay decorationId={profile.profile_decoration_id} forceDecoration />
+        </div>
+        <div className="p-4">
+          <p className="text-lg font-semibold text-vulo-bright">{current ? current.name : 'No profile decoration'}</p>
+          <p className="text-sm text-vulo-muted">Drawn across the banner of your profile card.</p>
+        </div>
+      </div>
+
+      <ErrorText>{error}</ErrorText>
+
+      <p className="mb-3 text-xs font-bold uppercase tracking-wide text-vulo-muted">Choose a profile decoration</p>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <ArtOption label="None" selected={!profile.profile_decoration_id} disabled={pending} onSelect={() => void choose(null)}>
+          <span className="absolute inset-0" style={{ background: bannerBackground(profile.accent_color) }} />
+        </ArtOption>
+        {items.map((d) => {
+          const reason = reasonFor(d);
+          return (
+            <ArtOption
+              key={d.id}
+              label={d.name}
+              hint={reason ?? (d.animated ? 'Animated' : undefined)}
+              selected={profile.profile_decoration_id === d.id}
+              disabled={pending || !!reason}
+              onSelect={() => void choose(d.id)}
+            >
+              <span className="absolute inset-0" style={{ background: bannerBackground(profile.accent_color) }} />
+              <img src={profileDecorationSrc(d)} alt="" aria-hidden="true" className="absolute inset-0 h-full w-full object-cover" />
+            </ArtOption>
+          );
+        })}
+      </div>
+      {items.length === 0 && <p className="mt-3 text-sm text-vulo-muted">Profile decorations are loading…</p>}
+    </>
+  );
+}
+
+function ArtOption({
   label,
   hint,
-  src,
   selected,
   disabled,
   onSelect,
+  children,
 }: {
   label: string;
   hint?: string;
-  src?: string;
   selected: boolean;
   disabled: boolean;
   onSelect: () => void;
+  /** The artwork preview. Leave it out for the None option. */
+  children?: ReactNode;
 }) {
   return (
     <button
@@ -527,9 +685,7 @@ function NameplateOption({
         selected ? 'bg-vulo-active ring-2 ring-vulo-accent' : 'bg-vulo-side hover:bg-vulo-hover'
       }`}
     >
-      <span className="relative block h-14 w-full overflow-hidden rounded bg-vulo-chat">
-        {src && <img src={src} alt="" aria-hidden="true" className="absolute inset-0 h-full w-full object-cover" />}
-      </span>
+      <span className="relative block h-16 w-full overflow-hidden rounded bg-vulo-chat">{children}</span>
       <span className="text-sm font-medium text-vulo-bright">{label}</span>
       {hint && <span className="text-xs text-vulo-muted">{hint}</span>}
     </button>
@@ -660,6 +816,60 @@ function AppearanceTab() {
 
       <Toggle label="Compact message spacing" hint="Less space between messages." checked={s.compact} onChange={(v) => updateSettings({ compact: v })} />
       <Toggle label="Show timestamps on hover" hint="Shows the time beside messages in a group." checked={s.showTimestamps} onChange={(v) => updateSettings({ showTimestamps: v })} />
+      <Toggle
+        label="Show link and image previews"
+        hint="Turn off to hide previews under messages. The links still work."
+        checked={s.showLinkPreviews}
+        onChange={(v) => updateSettings({ showLinkPreviews: v })}
+      />
+    </Section>
+  );
+}
+
+function AccessibilityTab() {
+  const s = useSettings();
+  return (
+    <Section title="Accessibility">
+      <Field label={`Text size — ${s.textScale}%`} hint="Scales most text in VuloChat, up to 130% of the default.">
+        <input
+          type="range"
+          min={90}
+          max={130}
+          step={5}
+          value={s.textScale}
+          onChange={(e) => updateSettings({ textScale: Number(e.target.value) })}
+          className="w-full accent-[#7c5cff]"
+        />
+      </Field>
+      <Toggle
+        label="Reduce motion"
+        hint="Stops animations, transitions and the pulsing voice effects. Animated artwork in decorations keeps moving."
+        checked={s.reduceMotion}
+        onChange={(v) => updateSettings({ reduceMotion: v })}
+      />
+      <Toggle
+        label="Show decorations"
+        hint="Off hides avatar, nameplate and profile decorations on your screen. Other people still see theirs."
+        checked={s.showDecorations}
+        onChange={(v) => updateSettings({ showDecorations: v })}
+      />
+    </Section>
+  );
+}
+
+function NotificationsTab() {
+  const s = useSettings();
+  return (
+    <Section title="Notifications">
+      <Toggle
+        label="Desktop notifications"
+        hint="Show a notification for new messages and direct messages while VuloChat is in the background."
+        checked={s.desktopNotifications}
+        onChange={(v) => updateSettings({ desktopNotifications: v })}
+      />
+      <p className="text-sm text-vulo-muted">
+        Your browser asks for permission the first time this is on. Turn it off here at any time to stop notifications from VuloChat.
+      </p>
     </Section>
   );
 }

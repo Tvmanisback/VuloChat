@@ -19,6 +19,14 @@ export interface Settings {
   pushToTalkEnabled: boolean;
   keybinds: Keybinds;
   desktopNotifications: boolean;
+  /** Text size as a percentage of the browser's default. */
+  textScale: number;
+  /** Stops animations and transitions across the app, on top of the system setting. */
+  reduceMotion: boolean;
+  /** Hides avatar, nameplate and profile decorations on this screen only. Others still see theirs. */
+  showDecorations: boolean;
+  /** Shows previews under links and images in chat. */
+  showLinkPreviews: boolean;
   theme: ThemeName;
   customTheme: ThemeColors;
 }
@@ -35,6 +43,10 @@ export const DEFAULT_SETTINGS: Settings = {
   pushToTalkEnabled: false,
   keybinds: { toggleMute: 'Control+Shift+M', toggleDeafen: 'Control+Shift+D', pushToTalk: 'Alt+V' },
   desktopNotifications: true,
+  textScale: 100,
+  reduceMotion: false,
+  showDecorations: true,
+  showLinkPreviews: true,
   theme: 'violet',
   customTheme: CUSTOM_DEFAULT,
 };
@@ -70,6 +82,9 @@ function applyTheme(s: Settings) {
   }
   // Native scrollbars and form controls follow the theme's lightness.
   style.setProperty('color-scheme', isDark(palette.chat) ? 'dark' : 'light');
+  // Text size, and the in-app reduce-motion switch that index.css reads.
+  document.documentElement.style.fontSize = `${s.textScale}%`;
+  document.documentElement.dataset.reduceMotion = s.reduceMotion ? 'on' : 'off';
 }
 
 export function getSettings(): Settings {

@@ -575,7 +575,8 @@ function AttachmentItem({ item }: { item: Attachment }) {
 }
 
 export function EmbedList({ items }: { items: Embed[] }) {
-  if (!items?.length) return null;
+  const { showLinkPreviews } = useSettings();
+  if (!showLinkPreviews || !items?.length) return null;
   return (
     <div className="mt-1 space-y-2">
       {items.map((e) =>

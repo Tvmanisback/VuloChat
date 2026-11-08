@@ -129,3 +129,11 @@ body {
     animation: none !important;
   }
 }
+
+/* The Reduce motion switch in Settings > Accessibility. The system setting is covered above. */
+html[data-reduce-motion='on'] *,
+html[data-reduce-motion='on'] *::before,
+html[data-reduce-motion='on'] *::after {
+  transition: none !important;
+  animation: none !important;
+}

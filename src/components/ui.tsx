@@ -1,5 +1,6 @@
 import { useEffect, type ButtonHTMLAttributes, type CSSProperties, type ReactNode } from 'react';
 import { decorationSrc, TINT_SUPPORTED, useDecorations } from '../lib/decorations';
+import { useSettings } from '../lib/settings';
 import type { Profile, UserStatus } from '../lib/types';
 
 export function Logo({ className = 'h-10 w-10' }: { className?: string }) {
@@ -60,6 +61,7 @@ export function Avatar({
   ringClass = 'border-vulo-chat',
   className = '',
   speaking = false,
+  forceDecoration = false,
 }: {
   profile: (Pick<Profile, 'id' | 'username' | 'display_name' | 'avatar_url' | 'decoration_id'> & { accent_color?: string | null }) | null;
   size?: 'xs' | 'sm' | 'md' | 'lg';
@@ -68,13 +70,16 @@ export function Avatar({
   className?: string;
   /** True while this person is talking in a voice channel. Voice-reactive decorations pulse. */
   speaking?: boolean;
+  /** Shows the decoration even when the viewer has turned decorations off. Used by the settings previews. */
+  forceDecoration?: boolean;
 }) {
   const decorations = useDecorations();
   const name = profile?.display_name || profile?.username || '?';
   const seed = (profile?.id ?? name).split('').reduce((a, c) => a + c.charCodeAt(0), 0);
   const dims = { xs: 'h-6 w-6 text-[10px]', sm: 'h-8 w-8 text-xs', md: 'h-10 w-10 text-sm', lg: 'h-20 w-20 text-2xl' }[size];
   const decorationId = profile?.decoration_id ?? null;
-  const decoration = decorationId ? decorations.find((d) => d.id === decorationId) : undefined;
+  const { showDecorations } = useSettings();
+  const decoration = decorationId && (showDecorations || forceDecoration) ? decorations.find((d) => d.id === decorationId) : undefined;
   // A tintable decoration takes the owner's accent colour: the frame becomes a mask filled with it.
   const tinted = !!decoration?.tintable && !!profile?.accent_color && TINT_SUPPORTED;
   const frameMask = decoration ? `url("${decorationSrc(decoration)}")` : undefined;

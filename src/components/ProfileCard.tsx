@@ -5,6 +5,7 @@ import type { Profile, UserStatus } from '../lib/types';
 import BadgeIcon from './BadgeIcon';
 import Markdown from './Markdown';
 import NameplateBackdrop from './Nameplate';
+import ProfileDecorationOverlay from './ProfileDecoration';
 import { Avatar } from './ui';
 
 const STATUS_LABEL: Record<UserStatus, string> = {
@@ -40,8 +41,9 @@ export default function ProfileCard({ profile, onClose }: { profile: Profile; on
         className="w-full max-w-[340px] overflow-hidden rounded-lg bg-vulo-rail shadow-2xl"
       >
         {/* Banner: the uploaded image, or a plain gradient when none is set. GIF banners play as they load. */}
-        <div className="h-28 w-full" style={{ background: bannerBackground(profile.accent_color) }}>
+        <div className="relative h-28 w-full overflow-hidden" style={{ background: bannerBackground(profile.accent_color) }}>
           {profile.banner_url && <img src={profile.banner_url} alt="" className="h-full w-full object-cover" />}
+          <ProfileDecorationOverlay decorationId={profile.profile_decoration_id} />
         </div>
 
         <div className="px-4 pb-4">

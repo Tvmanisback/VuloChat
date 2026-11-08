@@ -934,3 +934,97 @@ update public.avatar_decorations set tintable = true where id in (
   'd0000000-0000-4000-8000-000000000012', -- Heart ring
   'd0000000-0000-4000-8000-000000000013'  -- Pixel border
 );
+
+-- Profile card decorations: artwork drawn across the banner of a profile card.
+create table if not exists public.profile_decorations (
+  id uuid primary key default gen_random_uuid(),
+  name text not null check (char_length(name) between 1 and 40),
+  asset_path text not null check (asset_path ~ '^profile-decorations/[a-z0-9-]+\.(svg|png|webp|gif)$'),
+  animated boolean not null default false,
+  required_badge_id uuid references public.badges(id) on delete set null,
+  available_until timestamptz,
+  position int not null default 0,
+  created_at timestamptz not null default now()
+);
+
+alter table public.profile_decorations enable row level security;
+
+-- Signed-in users can browse profile decorations. There are no insert, update or delete policies,
+-- so only the project owner can add or change them.
+create policy profile_decorations_select on public.profile_decorations
+  for select to authenticated using (true);
+
+alter table public.profiles
+  add column if not exists profile_decoration_id uuid references public.profile_decorations(id) on delete set null;
+create index if not exists profiles_profile_decoration_idx on public.profiles(profile_decoration_id);
+
+-- Same rules as the other cosmetics: the item must not have ended, and the profile must hold the
+-- required badge. This runs when the item changes, so an item stays equipped if its badge is removed later.
+create or replace function public.check_profile_cosmetics()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+declare
+  item_badge uuid;
+  item_until timestamptz;
+begin
+  if new.decoration_id is not null and new.decoration_id is distinct from old.decoration_id then
+    select required_badge_id, available_until into item_badge, item_until
+      from public.avatar_decorations where id = new.decoration_id;
+    if item_until is not null and item_until < now() then
+      raise exception 'That decoration is no longer available.';
+    end if;
+    if item_badge is not null and not exists (
+      select 1 from public.profile_badges where profile_id = new.id and badge_id = item_badge
+    ) then
+      raise exception 'You need a badge to use that decoration.';
+    end if;
+  end if;
+
+  if new.nameplate_id is not null and new.nameplate_id is distinct from old.nameplate_id then
+    select required_badge_id, available_until into item_badge, item_until
+      from public.nameplates where id = new.nameplate_id;
+    if item_until is not null and item_until < now() then
+      raise exception 'That nameplate is no longer available.';
+    end if;
+    if item_badge is not null and not exists (
+      select 1 from public.profile_badges where profile_id = new.id and badge_id = item_badge
+    ) then
+      raise exception 'You need a badge to use that nameplate.';
+    end if;
+  end if;
+
+  if new.profile_decoration_id is not null and new.profile_decoration_id is distinct from old.profile_decoration_id then
+    select required_badge_id, available_until into item_badge, item_until
+      from public.profile_decorations where id = new.profile_decoration_id;
+    if item_until is not null and item_until < now() then
+      raise exception 'That profile decoration is no longer available.';
+    end if;
+    if item_badge is not null and not exists (
+      select 1 from public.profile_badges where profile_id = new.id and badge_id = item_badge
+    ) then
+      raise exception 'You need a badge to use that profile decoration.';
+    end if;
+  end if;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists profiles_check_cosmetics on public.profiles;
+create trigger profiles_check_cosmetics
+  before update of decoration_id, nameplate_id, profile_decoration_id on public.profiles
+  for each row execute function public.check_profile_cosmetics();
+
+insert into public.profile_decorations (id, name, asset_path, animated, required_badge_id, position) values
+  ('e0000000-0000-4000-8000-000000000001', 'Starfield', 'profile-decorations/starfield.svg', false, null, 0),
+  ('e0000000-0000-4000-8000-000000000002', 'Bokeh', 'profile-decorations/bokeh.svg', false, null, 1),
+  ('e0000000-0000-4000-8000-000000000003', 'Sakura drift', 'profile-decorations/sakura-drift.svg', false, null, 2),
+  ('e0000000-0000-4000-8000-000000000004', 'Aurora veil', 'profile-decorations/aurora-veil.svg', true, null, 3),
+  ('e0000000-0000-4000-8000-000000000005', 'Ember glow', 'profile-decorations/ember-glow.svg', false, null, 4),
+  ('e0000000-0000-4000-8000-000000000006', 'Circuit', 'profile-decorations/circuit.svg', false, null, 5),
+  ('e0000000-0000-4000-8000-000000000007', 'Confetti', 'profile-decorations/confetti.svg', false, null, 6),
+  ('e0000000-0000-4000-8000-000000000008', 'Crescent night', 'profile-decorations/crescent-night.svg', false, null, 7),
+  ('e0000000-0000-4000-8000-000000000009', 'Beta tester', 'profile-decorations/beta-tester.svg', false, 'b0000000-0000-4000-8000-000000000003', 30)
+on conflict (id) do nothing;
