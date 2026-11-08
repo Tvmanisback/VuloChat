@@ -3,8 +3,8 @@ import { loadProfileDecorations, profileDecorationSrc, useProfileDecorations } f
 import { useSettings } from '../lib/settings';
 
 /**
- * Fills the profile card body with its decoration. The parent must be relative and
- * overflow-hidden, with profile content positioned above this layer.
+ * Adds a subtle animated frame to the profile banner. The parent must be relative and
+ * overflow-hidden.
  */
 export default function ProfileDecorationOverlay({
   decorationId,
@@ -30,7 +30,7 @@ export default function ProfileDecorationOverlay({
       src={profileDecorationSrc(item)}
       alt=""
       aria-hidden="true"
-      className="pointer-events-none absolute inset-0 h-full w-full object-fill"
+      className="pointer-events-none absolute inset-0 h-full w-full object-cover"
     />
   );
 }
