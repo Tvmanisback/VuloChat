@@ -1,0 +1,18 @@
+node_modules/
+dist/
+.env
+.env.local
+*.log
+.DS_Store
+
+# Desktop build output
+Pc/node_modules/
+Pc/dist/
+Pc/www/
+
+# Android build output
+Android/node_modules/
+Android/www/
+Android/android/
+Android/*.jks
+Android/keystore.properties

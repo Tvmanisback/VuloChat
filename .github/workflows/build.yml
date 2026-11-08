@@ -1,0 +1,221 @@
+# VuloChat build, deploy and release pipeline.
+#
+#  web      builds the website (repo root) once and shares dist/ with the other jobs
+#  pages    deploys dist/ to GitHub Pages on pushes to main
+#  windows  builds the Windows installer and portable .exe from Pc/
+#  android  builds the Android .apk from Android/
+#  release  on a v* tag, attaches the .exe and .apk to a GitHub release
+#
+# Repository settings needed once:
+#   Settings > Pages > Source: "GitHub Actions"
+#   Settings > Secrets and variables > Actions:
+#     vars.VITE_SUPABASE_URL                 (optional, defaults to the VuloChat project)
+#     vars.VITE_SUPABASE_PUBLISHABLE_KEY     (optional, defaults to the VuloChat project)
+#     secrets.VULO_KEYSTORE_BASE64           (optional, base64 of your .jks; without it the APK is a debug build)
+#     secrets.VULO_KEYSTORE_PASSWORD, VULO_KEY_ALIAS, VULO_KEY_PASSWORD (with the keystore)
+
+name: VuloChat build & release
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: vulochat-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '20'
+  DEFAULT_SUPABASE_URL: https://yejtrubajgyphbggtjrd.supabase.co
+
+jobs:
+  web:
+    name: Build website
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Type-check and build
+        env:
+          VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL || env.DEFAULT_SUPABASE_URL }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY }}
+        run: npm run build
+
+      - name: Upload web build for the other jobs
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-dist
+          path: dist
+          retention-days: 7
+
+      - name: Upload GitHub Pages artifact
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  pages:
+    name: Deploy to GitHub Pages
+    needs: web
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
+
+  windows:
+    name: Build Windows app (.exe)
+    needs: web
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: web-dist
+          path: web-dist
+
+      - name: Sync the latest website into the desktop shell
+        run: |
+          rm -rf Pc/www
+          cp -r web-dist Pc/www
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install Electron and builder
+        working-directory: Pc
+        run: npm install --no-audit --no-fund
+
+      - name: Package Windows installer and portable exe
+        working-directory: Pc
+        run: npm run dist:win
+
+      - name: Upload Windows executables
+        uses: actions/upload-artifact@v4
+        with:
+          name: VuloChat-Windows
+          path: Pc/dist/*.exe
+          if-no-files-found: error
+
+  android:
+    name: Build Android app (.apk)
+    needs: web
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: web-dist
+          path: web-dist
+
+      - name: Sync the latest website into the Android shell
+        run: |
+          rm -rf Android/www
+          cp -r web-dist Android/www
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install Capacitor
+        working-directory: Android
+        run: npm install --no-audit --no-fund
+
+      - name: Restore release keystore (if configured)
+        env:
+          KEYSTORE_B64: ${{ secrets.VULO_KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$KEYSTORE_B64" ]; then
+            echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/vulochat-release.jks"
+            echo "VULO_KEYSTORE_PATH=$RUNNER_TEMP/vulochat-release.jks" >> "$GITHUB_ENV"
+            echo "Release keystore restored."
+          else
+            echo "No keystore secret set. The APK will be a debug build."
+          fi
+
+      - name: Generate and patch the native project
+        working-directory: Android
+        env:
+          VULO_KEYSTORE_PASSWORD: ${{ secrets.VULO_KEYSTORE_PASSWORD }}
+          VULO_KEY_ALIAS: ${{ secrets.VULO_KEY_ALIAS }}
+          VULO_KEY_PASSWORD: ${{ secrets.VULO_KEY_PASSWORD }}
+        run: node scripts/prepare-android.mjs
+
+      - name: Build APK
+        working-directory: Android/android
+        env:
+          VULO_KEYSTORE_PASSWORD: ${{ secrets.VULO_KEYSTORE_PASSWORD }}
+          VULO_KEY_ALIAS: ${{ secrets.VULO_KEY_ALIAS }}
+          VULO_KEY_PASSWORD: ${{ secrets.VULO_KEY_PASSWORD }}
+        run: |
+          chmod +x gradlew
+          if [ -n "$VULO_KEYSTORE_PATH" ]; then
+            ./gradlew assembleRelease --no-daemon
+          else
+            ./gradlew assembleDebug --no-daemon
+          fi
+
+      - name: Collect APK
+        run: |
+          mkdir -p apk-out
+          find Android/android/app/build/outputs/apk -name '*.apk' -exec cp {} apk-out/ \;
+          ls -la apk-out
+
+      - name: Upload Android APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: VuloChat-Android
+          path: apk-out/*.apk
+          if-no-files-found: error
+
+  release:
+    name: Attach files to release
+    needs: [windows, android]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: VuloChat-*
+          merge-multiple: true
+          path: release-files
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: VuloChat ${{ github.ref_name }}
+          generate_release_notes: true
+          files: release-files/*

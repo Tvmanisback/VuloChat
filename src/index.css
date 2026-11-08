@@ -1,0 +1,93 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: none;
+}
+
+/* Thin, Discord-style scrollbars */
+.scroll-thin {
+  scrollbar-width: thin;
+  scrollbar-color: #1a1b1e transparent;
+}
+.scroll-thin::-webkit-scrollbar {
+  width: 8px;
+}
+.scroll-thin::-webkit-scrollbar-thumb {
+  background: #1a1b1e;
+  border-radius: 4px;
+}
+
+/* Markdown output inside messages */
+.markdown p {
+  margin: 0;
+}
+.markdown p + p {
+  margin-top: 0.5em;
+}
+.markdown code {
+  font-family: theme('fontFamily.mono');
+  font-size: 0.875em;
+  background: #2b2d31;
+  padding: 0.1em 0.3em;
+  border-radius: 3px;
+}
+.markdown pre {
+  background: #2b2d31;
+  border: 1px solid #1e1f22;
+  border-radius: 4px;
+  padding: 0.6em 0.8em;
+  overflow-x: auto;
+  margin: 0.4em 0;
+}
+.markdown pre code {
+  background: none;
+  padding: 0;
+}
+.markdown blockquote {
+  border-left: 4px solid #4e5058;
+  padding-left: 0.75em;
+  color: #b5bac1;
+}
+.markdown ul,
+.markdown ol {
+  padding-left: 1.4em;
+  margin: 0.2em 0;
+}
+.markdown ul {
+  list-style: disc;
+}
+.markdown ol {
+  list-style: decimal;
+}
+.markdown strong {
+  color: #f2f3f5;
+  font-weight: 600;
+}
+.markdown table {
+  border-collapse: collapse;
+  margin: 0.4em 0;
+}
+.markdown th,
+.markdown td {
+  border: 1px solid #3f4147;
+  padding: 0.2em 0.5em;
+}
+.markdown del {
+  color: #949ba4;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+    animation: none !important;
+  }
+}

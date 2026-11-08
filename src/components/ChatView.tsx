@@ -1,0 +1,423 @@
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react';
+import { supabase } from '../lib/supabase';
+import { attachmentUrl, formatBytes } from '../lib/attachments';
+import { hasPerm, PERM } from '../lib/permissions';
+import { getSettings, useSettings } from '../lib/settings';
+import { playCue } from '../lib/sounds';
+import type { Attachment, Channel, Embed, MemberRow, Message, Profile } from '../lib/types';
+import Composer from './Composer';
+import Markdown from './Markdown';
+import { Icon } from './icons';
+import { Avatar } from './ui';
+
+const PAGE = 50;
+const GROUP_WINDOW_MS = 7 * 60 * 1000;
+
+interface Props {
+  channel: Channel;
+  userId: string;
+  perms: number;
+  members: MemberRow[];
+  myDisplayName: string;
+}
+
+function formatTime(iso: string) {
+  const d = new Date(iso);
+  const today = new Date();
+  const sameDay = d.toDateString() === today.toDateString();
+  const time = d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  return sameDay ? `Today at ${time}` : `${d.toLocaleDateString()} ${time}`;
+}
+
+export default function ChatView({ channel, userId, perms, members, myDisplayName }: Props) {
+  const settings = useSettings();
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [hasMore, setHasMore] = useState(false);
+  const [menu, setMenu] = useState<{ x: number; y: number; msg: Message } | null>(null);
+  const [editing, setEditing] = useState<{ id: string; text: string } | null>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const stickToBottom = useRef(true);
+
+  const profiles = new Map<string, Profile | null>(members.map((m) => [m.user_id, m.profiles] as const));
+  const canSend = hasPerm(perms, PERM.SEND_MESSAGES);
+  const canModerate = hasPerm(perms, PERM.MANAGE_MESSAGES);
+
+  // Initial load and realtime subscription for this channel.
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setMessages([]);
+    supabase
+      .from('messages')
+      .select('*')
+      .eq('channel_id', channel.id)
+      .order('created_at', { ascending: false })
+      .limit(PAGE)
+      .then(({ data }) => {
+        if (cancelled) return;
+        const rows = ((data as Message[] | null) ?? []).reverse();
+        setMessages(rows);
+        setHasMore((data?.length ?? 0) === PAGE);
+        setLoading(false);
+      });
+
+    const filter = `channel_id=eq.${channel.id}`;
+    const ch = supabase
+      .channel(`messages:${channel.id}`)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter }, (p) => {
+        const row = p.new as Message;
+        setMessages((prev) => (prev.some((m) => m.id === row.id) ? prev : [...prev, row]));
+        if (row.author_id !== userId) playCue('message', getSettings().outputVolume);
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'messages', filter }, (p) => {
+        const row = p.new as Message;
+        setMessages((prev) => prev.map((m) => (m.id === row.id ? row : m)));
+      })
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'messages', filter }, (p) => {
+        const id = (p.old as { id: string }).id;
+        setMessages((prev) => prev.filter((m) => m.id !== id));
+      })
+      .subscribe();
+
+    return () => {
+      cancelled = true;
+      void supabase.removeChannel(ch);
+    };
+  }, [channel.id, userId]);
+
+  // Keep the view pinned to the newest message unless the user has scrolled up.
+  useLayoutEffect(() => {
+    if (stickToBottom.current && scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [messages]);
+
+  const onScroll = () => {
+    const el = scrollRef.current;
+    if (!el) return;
+    stickToBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+  };
+
+  const loadOlder = useCallback(async () => {
+    const oldest = messages[0];
+    if (!oldest) return;
+    const { data } = await supabase
+      .from('messages')
+      .select('*')
+      .eq('channel_id', channel.id)
+      .lt('created_at', oldest.created_at)
+      .order('created_at', { ascending: false })
+      .limit(PAGE);
+    const rows = ((data as Message[] | null) ?? []).reverse();
+    setMessages((prev) => [...rows, ...prev]);
+    setHasMore(rows.length === PAGE);
+  }, [channel.id, messages]);
+
+  const send = async (content: string, attachments: Attachment[], embeds: Embed[]) => {
+    const { error } = await supabase.from('messages').insert({
+      channel_id: channel.id,
+      author_id: userId,
+      content,
+      attachments,
+      embeds,
+    });
+    if (error) throw error;
+    stickToBottom.current = true;
+  };
+
+  const saveEdit = async () => {
+    if (!editing) return;
+    const text = editing.text.trim();
+    if (!text) return;
+    await supabase.from('messages').update({ content: text, edited_at: new Date().toISOString() }).eq('id', editing.id);
+    setEditing(null);
+  };
+
+  const remove = async (m: Message) => {
+    if (!window.confirm('Delete this message? This cannot be undone.')) return;
+    await supabase.from('messages').delete().eq('id', m.id);
+  };
+
+  // Close the context menu on any outside click or Escape.
+  useEffect(() => {
+    if (!menu) return;
+    const close = () => setMenu(null);
+    const esc = (e: KeyboardEvent) => e.key === 'Escape' && close();
+    window.addEventListener('click', close);
+    window.addEventListener('keydown', esc);
+    return () => {
+      window.removeEventListener('click', close);
+      window.removeEventListener('keydown', esc);
+    };
+  }, [menu]);
+
+  const openMenu = (e: ReactMouseEvent, msg: Message) => {
+    e.preventDefault();
+    setMenu({ x: Math.min(e.clientX, window.innerWidth - 200), y: Math.min(e.clientY, window.innerHeight - 160), msg });
+  };
+
+  // Group consecutive messages from the same author so the feed reads like Discord.
+  const rendered = messages.map((m, i) => {
+    const prev = messages[i - 1];
+    const continuation =
+      !!prev &&
+      prev.author_id === m.author_id &&
+      !m.reply_to &&
+      new Date(m.created_at).getTime() - new Date(prev.created_at).getTime() < GROUP_WINDOW_MS;
+    return { m, continuation };
+  });
+
+  return (
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col bg-vulo-chat">
+      <header className="flex h-12 shrink-0 items-center gap-2 border-b border-vulo-rail px-4 shadow-sm">
+        <Icon name="hash" className="h-6 w-6 text-vulo-muted" />
+        <h2 className="font-semibold text-vulo-bright">{channel.name}</h2>
+        {channel.topic && (
+          <>
+            <span className="mx-2 h-6 w-px bg-vulo-line" />
+            <p className="truncate text-sm text-vulo-muted">{channel.topic}</p>
+          </>
+        )}
+      </header>
+
+      <div ref={scrollRef} onScroll={onScroll} className="scroll-thin min-h-0 flex-1 overflow-y-auto py-4" role="log" aria-live="polite">
+        {loading && <p className="px-4 text-sm text-vulo-muted">Loading messages…</p>}
+
+        {!loading && messages.length === 0 && (
+          <div className="px-4 pb-6 pt-10">
+            <div className="mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-vulo-accent text-white">
+              <Icon name="hash" className="h-9 w-9" />
+            </div>
+            <h3 className="text-3xl font-bold text-vulo-bright">Welcome to #{channel.name}</h3>
+            <p className="mt-1 text-vulo-muted">This is the start of the channel. Say hello.</p>
+          </div>
+        )}
+
+        {hasMore && !loading && (
+          <div className="px-4 pb-3">
+            <button onClick={() => void loadOlder()} className="text-xs text-[#00a8fc] hover:underline">
+              Load older messages
+            </button>
+          </div>
+        )}
+
+        {rendered.map(({ m, continuation }) => {
+          const author = profiles.get(m.author_id);
+          const name = author?.display_name || author?.username || 'Unknown user';
+          const isEditing = editing?.id === m.id;
+          const canDelete = m.author_id === userId || canModerate;
+          return (
+            <article
+              key={m.id}
+              className={`group relative flex gap-4 px-4 hover:bg-[#2e3035] ${continuation ? 'py-[1px]' : settings.compact ? 'mt-1 py-[1px]' : 'mt-[17px] py-[2px]'}`}
+              onContextMenu={(e) => openMenu(e, m)}
+            >
+              <div className="w-10 shrink-0">
+                {!continuation ? (
+                  <Avatar profile={author ?? null} size="md" className="mt-0.5" />
+                ) : (
+                  settings.showTimestamps && (
+                    <time className="hidden pt-1 text-center text-[11px] text-vulo-muted group-hover:block" dateTime={m.created_at}>
+                      {new Date(m.created_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
+                    </time>
+                  )
+                )}
+              </div>
+
+              <div className="min-w-0 flex-1">
+                {!continuation && (
+                  <header className="flex items-baseline gap-2">
+                    <span className="font-medium text-vulo-bright">{name}</span>
+                    <time className="text-xs text-vulo-muted" dateTime={m.created_at}>{formatTime(m.created_at)}</time>
+                  </header>
+                )}
+
+                {isEditing ? (
+                  <div className="mt-1">
+                    <textarea
+                      autoFocus
+                      value={editing.text}
+                      onChange={(e) => setEditing({ id: m.id, text: e.target.value })}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Escape') setEditing(null);
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault();
+                          void saveEdit();
+                        }
+                      }}
+                      className="w-full rounded bg-vulo-input px-3 py-2 text-vulo-text outline-none focus:ring-2 focus:ring-vulo-accent"
+                      rows={2}
+                    />
+                    <p className="text-xs text-vulo-muted">
+                      Escape to <button className="text-[#00a8fc] hover:underline" onClick={() => setEditing(null)}>cancel</button> · Enter to save
+                    </p>
+                  </div>
+                ) : (
+                  m.content && (
+                    <div className="text-[15px] leading-[1.375rem]">
+                      <Markdown text={m.content} />
+                      {m.edited_at && <span className="ml-1 text-[10px] text-vulo-muted">(edited)</span>}
+                    </div>
+                  )
+                )}
+
+                <AttachmentList items={m.attachments} />
+                <EmbedList items={m.embeds} />
+              </div>
+
+              {!isEditing && (
+                <div className="absolute -top-3 right-4 hidden items-center gap-0.5 rounded bg-vulo-chat p-0.5 shadow group-hover:flex">
+                  {m.author_id === userId && (
+                    <button
+                      onClick={() => setEditing({ id: m.id, text: m.content })}
+                      className="rounded p-1 text-vulo-muted hover:text-vulo-text"
+                      aria-label="Edit message"
+                    >
+                      <Icon name="pencil" className="h-4 w-4" />
+                    </button>
+                  )}
+                  {canDelete && (
+                    <button onClick={() => void remove(m)} className="rounded p-1 text-vulo-muted hover:text-vulo-red" aria-label="Delete message">
+                      <Icon name="trash" className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
+              )}
+            </article>
+          );
+        })}
+      </div>
+
+      <Composer
+        userId={userId}
+        placeholder={`Message #${channel.name}`}
+        disabled={!canSend}
+        disabledReason="You do not have permission to send messages in this channel."
+        onSend={send}
+      />
+
+      {menu && (
+        <div
+          role="menu"
+          className="fixed z-50 w-48 rounded bg-vulo-rail p-1.5 text-sm shadow-2xl"
+          style={{ left: menu.x, top: menu.y }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button
+            role="menuitem"
+            className="block w-full rounded px-2 py-1.5 text-left text-vulo-text hover:bg-vulo-accent hover:text-white"
+            onClick={() => {
+              void navigator.clipboard?.writeText(menu.msg.content);
+              setMenu(null);
+            }}
+          >
+            Copy text
+          </button>
+          {menu.msg.author_id === userId && (
+            <button
+              role="menuitem"
+              className="block w-full rounded px-2 py-1.5 text-left text-vulo-text hover:bg-vulo-accent hover:text-white"
+              onClick={() => {
+                setEditing({ id: menu.msg.id, text: menu.msg.content });
+                setMenu(null);
+              }}
+            >
+              Edit message
+            </button>
+          )}
+          {(menu.msg.author_id === userId || canModerate) && (
+            <button
+              role="menuitem"
+              className="block w-full rounded px-2 py-1.5 text-left text-vulo-red hover:bg-vulo-red hover:text-white"
+              onClick={() => {
+                void remove(menu.msg);
+                setMenu(null);
+              }}
+            >
+              Delete message
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Accessibility: name of the current user for screen readers */}
+      <span className="sr-only">Signed in as {myDisplayName}</span>
+    </div>
+  );
+}
+
+export function AttachmentList({ items }: { items: Attachment[] }) {
+  if (!items?.length) return null;
+  return (
+    <ul className="mt-1 space-y-2">
+      {items.map((a) => (
+        <AttachmentItem key={a.path} item={a} />
+      ))}
+    </ul>
+  );
+}
+
+function AttachmentItem({ item }: { item: Attachment }) {
+  const [url, setUrl] = useState<string | null>(null);
+  const isImage = item.type.startsWith('image/');
+
+  useEffect(() => {
+    let alive = true;
+    void attachmentUrl(item.path).then((u) => alive && setUrl(u));
+    return () => {
+      alive = false;
+    };
+  }, [item.path]);
+
+  if (isImage && url) {
+    return (
+      <li>
+        <a href={url} target="_blank" rel="noopener noreferrer">
+          <img src={url} alt={item.name} className="max-h-80 max-w-md rounded" loading="lazy" />
+        </a>
+      </li>
+    );
+  }
+  return (
+    <li>
+      <a
+        href={url ?? undefined}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="inline-flex max-w-md items-center gap-2 rounded bg-vulo-side px-3 py-2 text-sm text-[#00a8fc] hover:underline"
+        aria-disabled={!url}
+      >
+        <Icon name="paperclip" className="h-4 w-4 shrink-0" />
+        <span className="truncate">{item.name}</span>
+        <span className="shrink-0 text-xs text-vulo-muted">{formatBytes(item.size)}</span>
+      </a>
+    </li>
+  );
+}
+
+export function EmbedList({ items }: { items: Embed[] }) {
+  if (!items?.length) return null;
+  return (
+    <div className="mt-1 space-y-2">
+      {items.map((e) =>
+        e.type === 'image' ? (
+          <a key={e.url} href={e.url} target="_blank" rel="noopener noreferrer nofollow">
+            <img src={e.url} alt="" className="max-h-72 max-w-md rounded" loading="lazy" referrerPolicy="no-referrer" />
+          </a>
+        ) : (
+          <a
+            key={e.url}
+            href={e.url}
+            target="_blank"
+            rel="noopener noreferrer nofollow"
+            className="block max-w-md rounded border-l-4 border-vulo-accent bg-vulo-side px-3 py-2 hover:bg-vulo-hover"
+          >
+            <p className="text-xs text-vulo-muted">{e.host}</p>
+            <p className="truncate text-sm text-[#00a8fc]">{e.url}</p>
+          </a>
+        ),
+      )}
+    </div>
+  );
+}

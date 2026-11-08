@@ -1,0 +1,49 @@
+{
+  "name": "vulochat-desktop",
+  "productName": "VuloChat",
+  "version": "1.0.0",
+  "description": "VuloChat for Windows",
+  "author": "VuloChat",
+  "license": "UNLICENSED",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist:win": "electron-builder --win nsis portable --x64 --publish never"
+  },
+  "devDependencies": {
+    "electron": "^33.2.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "chat.vulo.desktop",
+    "productName": "VuloChat",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "www/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        { "target": "nsis", "arch": ["x64"] },
+        { "target": "portable", "arch": ["x64"] }
+      ]
+    },
+    "nsis": {
+      "artifactName": "VuloChat-Setup-${version}.${ext}",
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "VuloChat"
+    },
+    "portable": {
+      "artifactName": "VuloChat-Portable-${version}.${ext}"
+    },
+    "publish": null
+  }
+}
