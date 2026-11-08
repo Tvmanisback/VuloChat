@@ -111,12 +111,30 @@ function Terms() {
     <Page title="Terms of Service" updated={UPDATED}>
       <Clause title="1. About VuloChat">
         <p>
-          VuloChat is a chat app with servers, channels, direct messages, voice channels and cosmetic decorations. Its code is open
-          source and lives on GitHub. The official site is run by Tvmans, the project owner.
+          VuloChat is a chat app with servers, channels, direct messages, voice channels and cosmetic decorations. The official service and its backend are operated by Tvmans, the project owner. Public access to the website or repository does not grant permission to copy, rehost, redistribute or operate a separate version of VuloChat.
         </p>
       </Clause>
 
-      <Clause title="2. Your account">
+      <Clause title="2. Copying, hosting and third-party clients">
+        <p>
+          You may not copy, clone, rebrand, mirror, rehost, redistribute or publish VuloChat, or make a separate service from
+          its code, design, assets or other project materials, unless the project owner has given you prior written permission.
+          You may not connect to, use, modify or access the VuloChat Supabase project, database, storage, keys or backend
+          infrastructure unless you are the project owner or have the owner's explicit authorization. Do not use, share,
+          extract or attempt to obtain private credentials, user data or backend secrets.
+        </p>
+        <p>
+          Independent third-party clients that connect to the official VuloChat service are allowed, provided they use an
+          authorized interface, do not access private backend resources, do not impersonate the official app, and respect
+          every user's privacy. Yes, clients are allowed. Just respect people's privacy.
+        </p>
+        <p>
+          Unauthorized copying, rehosting, impersonation, backend access or misuse of user data may result in access being
+          blocked and may be referred for further action where appropriate.
+        </p>
+      </Clause>
+
+      <Clause title="3. Your account">
         <Bullets>
           <li>Usernames are 2 to 32 characters: lowercase letters, numbers, underscores and dots. They are fixed once you sign up.</li>
           <li>Passwords must be at least 8 characters. Keep yours private. You are responsible for anything done from your account.</li>
@@ -124,14 +142,14 @@ function Terms() {
         </Bullets>
       </Clause>
 
-      <Clause title="3. What you post">
+      <Clause title="4. What you post">
         <p>
           You own what you post, and you are responsible for it. By posting, you let VuloChat store, process and show it to the people
           you share it with, and run the automated checks in section 6.
         </p>
       </Clause>
 
-      <Clause title="4. Rules">
+      <Clause title="5. Rules">
         <p>Do not use VuloChat to:</p>
         <Bullets>
           <li>
@@ -143,7 +161,7 @@ function Terms() {
         </Bullets>
       </Clause>
 
-      <Clause title="5. Reporting and moderation">
+      <Clause title="6. Reporting and moderation">
         <p>
           If you see content or behaviour that breaks these rules, use Report on the message, direct message or profile. Reports go to
           the project owner, who reviews them. Server owners and people with the Manage Messages permission can also delete messages in
@@ -151,21 +169,21 @@ function Terms() {
         </p>
       </Clause>
 
-      <Clause title="6. Automated checks">
+      <Clause title="7. Automated checks">
         <p>
           Images you upload are checked by an automated service when the project owner has set one up. Messages also pass a check for
           blocked words. These checks make mistakes, so they cannot catch everything, and content can be removed after it is posted.
         </p>
       </Clause>
 
-      <Clause title="7. Servers">
+      <Clause title="8. Servers">
         <p>
           Server owners and people with the right permissions manage a server's channels, roles, members, emojis and stickers, and must
           follow these terms too.
         </p>
       </Clause>
 
-      <Clause title="8. Decorations and badges">
+      <Clause title="9. Decorations and badges">
         <p>
           Avatar decorations, nameplates, profile card decorations and badges are cosmetic. This version of VuloChat sells nothing, so
           they have no cash value and cannot be bought, sold or transferred. Badges are granted at the project owner's discretion. Any
@@ -173,49 +191,49 @@ function Terms() {
         </p>
       </Clause>
 
-      <Clause title="9. Voice and video">
+      <Clause title="10. Voice and video">
         <p>
           Voice channels connect participants directly to each other, so people in a call can hear each other. VuloChat does not
           record calls.
         </p>
       </Clause>
 
-      <Clause title="10. Third-party services">
+      <Clause title="11. Third-party services">
         <p>
           VuloChat relies on Supabase (accounts, database, file storage and realtime), KLIPY (GIF search), Sightengine (image checks)
           and GitHub Pages (website hosting). Their own terms also apply to what they handle.
         </p>
       </Clause>
 
-      <Clause title="11. Deleting your account">
+      <Clause title="12. Deleting your account">
         <p>
           You can delete your account in Settings, under My Account. Deleting removes what the account created, as the Privacy Policy
           describes. Deletion cannot be undone. You must delete any servers you own first.
         </p>
       </Clause>
 
-      <Clause title="12. The service">
+      <Clause title="13. The service">
         <p>
           VuloChat is provided as is. It may be unavailable at times, features may change or stop, and data can be lost. To the extent
           the law allows, the project owner is not liable for indirect losses.
         </p>
       </Clause>
 
-      <Clause title="13. Ending your use">
+      <Clause title="14. Ending your use">
         <p>
           You can stop using VuloChat at any time by deleting your account. The project owner can suspend or end access for breaking
           these terms.
         </p>
       </Clause>
 
-      <Clause title="14. Changes">
+      <Clause title="15. Changes">
         <p>
           These terms can change. The date at the top shows the latest version. Carrying on with VuloChat after a change means you accept
           it.
         </p>
       </Clause>
 
-      <Clause title="15. Contact">
+      <Clause title="16. Contact">
         <p>
           Questions about these terms: open an issue at <ExternalLink href={ISSUES_URL}>GitHub issues</ExternalLink>. Issues are
           public, so do not post personal information there.
