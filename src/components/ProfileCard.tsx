@@ -103,15 +103,17 @@ export default function ProfileCard({ profile, onClose }: { profile: Profile; on
                   <p className="mb-2 text-xs font-bold uppercase tracking-wide text-vulo-muted">Listening / Playing</p>
                   <div className="space-y-2">
                     {activity.map((item) => (
-                      <a key={item.provider} href={item.external_url || undefined} target={item.external_url ? '_blank' : undefined} rel="noopener noreferrer" className="flex items-center gap-3 rounded-lg bg-vulo-side p-2">
-                        {item.image_url && <img src={item.image_url} alt="" className="h-10 w-10 rounded object-cover" />}
-                        <span className="min-w-0">
-                          <span className="block text-[10px] font-bold uppercase text-vulo-muted">{item.provider === 'spotify' ? 'Spotify' : 'Steam'}</span>
-                          <span className="block truncate text-sm font-semibold text-vulo-bright">{item.title}</span>
-                          {item.subtitle && <span className="block truncate text-xs text-vulo-muted">{item.subtitle}</span>}
-                          {item.provider === 'spotify' && item.provider_username && <a href={item.provider_profile_url || undefined} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="mt-1 block truncate text-xs text-vulo-accent hover:underline">Spotify · {item.provider_username}</a>}
-                        </span>
-                      </a>
+                      <div key={item.provider} className="rounded-lg bg-vulo-side p-2">
+                        <div className="flex items-center gap-3">
+                          {item.image_url && <img src={item.image_url} alt="" className="h-10 w-10 rounded object-cover" />}
+                          <span className="min-w-0">
+                            <span className="block text-[10px] font-bold uppercase text-vulo-muted">{item.provider === 'spotify' ? 'Spotify' : 'Steam'}</span>
+                            {item.external_url ? <a href={item.external_url} target="_blank" rel="noopener noreferrer" className="block truncate text-sm font-semibold text-vulo-bright hover:underline">{item.title}</a> : <span className="block truncate text-sm font-semibold text-vulo-bright">{item.title}</span>}
+                            {item.subtitle && <span className="block truncate text-xs text-vulo-muted">{item.subtitle}</span>}
+                            {item.provider === 'spotify' && item.provider_username && <a href={item.provider_profile_url || undefined} target="_blank" rel="noopener noreferrer" className="mt-1 block truncate text-xs text-vulo-accent hover:underline">Spotify · {item.provider_username}</a>}
+                          </span>
+                        </div>
+                      </div>
                     ))}
                   </div>
                 </div>
