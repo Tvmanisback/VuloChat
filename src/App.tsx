@@ -27,7 +27,7 @@ export default function App() {
     };
   }, [session]);
 
-  if (window.location.pathname.startsWith('/developers')) return <DeveloperPortal />;
+  if (window.location.pathname.includes('/developers')) return <DeveloperPortal />;
   if (loading) return <Splash />;
   if (!session) return <AuthScreen />;
   if (!profile) return <Splash label="Setting up your profile…" />;
