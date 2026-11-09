@@ -26,6 +26,11 @@ The API checks that the bot is installed and that its server-level permissions a
 ### List server members
 `{"action":"get_members","channel_id":"CHANNEL_UUID"}`
 
+### Read installed bot configuration
+`{"action":"get_config","channel_id":"CHANNEL_UUID"}`
+
+Returns the server-specific settings and permissions configured by the server owner.
+
 The bot must be installed in the channel's server and have Read messages permission. This endpoint returns recent member IDs, usernames, display names, and join timestamps.
 
 ### Local Welcomer example (Node.js)
