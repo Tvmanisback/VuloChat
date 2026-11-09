@@ -13,5 +13,6 @@ export class Vulo {
   sendMessage(channelId, content) { return this.request("send_message", {channel_id:channelId,content}); }
   getMessages(channelId) { return this.request("get_messages", {channel_id:channelId}); }
   getMembers(channelId) { return this.request("get_members", {channel_id:channelId}); }
+  getConfig(channelId) { return this.request("get_config", {channel_id:channelId}); }
 }
 export default Vulo;
