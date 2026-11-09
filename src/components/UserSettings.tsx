@@ -14,7 +14,7 @@ import NameplateBackdrop from './Nameplate';
 import ProfileDecorationOverlay from './ProfileDecoration';
 import { CUSTOM_DEFAULT, PRESETS, type PresetName, type ThemeColors, type ThemeName } from '../lib/themes';
 
-type Tab = 'account' | 'profile' | 'decorations' | 'appearance' | 'accessibility' | 'notifications' | 'voice' | 'keybinds';
+type Tab = 'account' | 'profile' | 'decorations' | 'connections' | 'appearance' | 'accessibility' | 'notifications' | 'voice' | 'keybinds';
 type DecorationSection = 'avatar' | 'nameplate' | 'profile';
 
 const GROUPS: { title: string; tabs: { id: Tab; label: string }[] }[] = [
@@ -24,6 +24,7 @@ const GROUPS: { title: string; tabs: { id: Tab; label: string }[] }[] = [
       { id: 'account', label: 'My Account' },
       { id: 'profile', label: 'Profile' },
       { id: 'decorations', label: 'Decorations' },
+      { id: 'connections', label: 'Connections' },
     ],
   },
   {
@@ -110,6 +111,7 @@ export default function UserSettings({ onClose }: { onClose: () => void }) {
           {tab === 'account' && <AccountTab />}
           {tab === 'profile' && <ProfileTab />}
           {tab === 'decorations' && <DecorationsTab />}
+          {tab === 'connections' && <ConnectionsTab />}
           {tab === 'appearance' && <AppearanceTab />}
           {tab === 'accessibility' && <AccessibilityTab />}
           {tab === 'notifications' && <NotificationsTab />}
@@ -1076,4 +1078,24 @@ function KeybindsTab() {
       ))}
     </Section>
   );
+}
+
+function ConnectionsTab() {
+  const [items, setItems] = useState<{provider:string;display_name:string|null}[]>([]);
+  const [busy, setBusy] = useState('');
+  const [error, setError] = useState('');
+  const load = async () => { const {data,error}=await supabase.functions.invoke('connections',{body:{action:'status'}}); if(error) setError('Could not load connections.'); else setItems(data?.connections||[]); };
+  useEffect(()=>{ void load(); },[]);
+  const connect = async (provider:'spotify'|'steam') => { setBusy(provider); setError(''); const {data,error}=await supabase.functions.invoke('connections',{body:{action:provider==='spotify'?'connect_spotify':'connect_steam'}}); if(error||!data?.url){setError(data?.error==='spotify_not_configured'?'Spotify credentials have not been added to Supabase yet.':'Could not start connection.');setBusy('');return;} location.assign(data.url); };
+  const disconnect = async (provider:'spotify'|'steam') => { setBusy(provider); const {error}=await supabase.functions.invoke('connections',{body:{action:'disconnect',provider}}); if(error)setError('Could not disconnect.'); else await load(); setBusy(''); };
+  const has=(provider:string)=>items.some(x=>x.provider===provider);
+  return <Section title="Connections">
+    <p className="mb-5 text-sm text-vulo-muted">Connect Spotify to show your currently playing track, or Steam to link your gaming profile and show your current game when available.</p>
+    {(['spotify','steam'] as const).map(provider=><div key={provider} className="mb-4 rounded-lg bg-vulo-side p-4">
+      <div className="mb-3 flex items-center justify-between"><span className="font-semibold capitalize text-vulo-bright">{provider}</span><span className="text-xs text-vulo-muted">{has(provider)?'Connected':'Not connected'}</span></div>
+      {has(provider)?<Button variant="secondary" disabled={!!busy} onClick={()=>void disconnect(provider)}>Disconnect {provider}</Button>:<Button disabled={!!busy} onClick={()=>void connect(provider)}>{busy===provider?'Connecting…':'Connect '+provider}</Button>}
+    </div>)}
+    <ErrorText>{error}</ErrorText>
+    <p className="mt-4 text-xs text-vulo-muted">Disconnect at any time. Your service passwords are never displayed on VuloChat.</p>
+  </Section>;
 }
