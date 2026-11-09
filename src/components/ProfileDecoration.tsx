@@ -2,15 +2,13 @@ import { useEffect } from 'react';
 import { loadProfileDecorations, profileDecorationSrc, useProfileDecorations } from '../lib/profileDecorations';
 import { useSettings } from '../lib/settings';
 
-/** Renders banner art in the banner slot and portrait frames around the whole profile card. */
+/** Renders the selected decoration as a full-profile overlay, behind profile content. */
 export default function ProfileDecorationOverlay({
   decorationId,
   forceDecoration = false,
-  allowFullProfile = false,
 }: {
   decorationId: string | null | undefined;
   forceDecoration?: boolean;
-  allowFullProfile?: boolean;
 }) {
   const items = useProfileDecorations();
   const { showDecorations } = useSettings();
@@ -23,17 +21,12 @@ export default function ProfileDecorationOverlay({
   const item = items.find((d) => d.id === decorationId);
   if (!item) return null;
 
-  const src = profileDecorationSrc(item);
-  const isPortraitFrame = /-profile\.svg$/i.test(item.asset_path);
-
   return (
     <img
-      src={src}
+      src={profileDecorationSrc(item)}
       alt=""
       aria-hidden="true"
-      className={isPortraitFrame && allowFullProfile
-        ? 'pointer-events-none absolute inset-0 z-0 h-full w-full object-contain'
-        : 'pointer-events-none absolute left-0 top-0 z-10 h-28 w-full object-contain'}
+      className="pointer-events-none absolute inset-0 z-[1] h-full w-full object-fill"
     />
   );
 }
