@@ -64,9 +64,9 @@ export default function ChannelSidebar(props: Props) {
         >
           <Icon name={c.type === 'voice' ? 'speaker' : 'hash'} className="h-5 w-5 shrink-0 opacity-70" />
           <span className="flex-1 truncate">{c.name}</span>
-          {canManage && <select aria-label={`Move ${c.name} to category`} title="Move channel" className="max-w-20 rounded bg-vulo-rail px-1 py-0.5 text-[10px] opacity-0 group-hover:opacity-100" value={c.parent_id ?? ''} onClick={e=>e.stopPropagation()} onChange={async e=>{const parentId=e.target.value||null; await supabase.from('channels').update({parent_id:parentId}).eq('id',c.id);}}><option value="">Uncategorized</option>{categories.filter(cat=>cat.id!==c.id).map(cat=><option key={cat.id} value={cat.id}>{cat.name}</option>)}</select>}
           {inVoice && <span className="h-2 w-2 rounded-full bg-vulo-green" aria-label="Connected" />}
         </button>
+        {canManage && <select aria-label={`Move ${c.name} to category`} title="Move channel" className="ml-2 max-w-20 rounded bg-vulo-rail px-1 py-0.5 text-[10px] text-vulo-muted opacity-0 hover:opacity-100 focus:opacity-100" value={c.parent_id ?? ''} onChange={async e=>{const parentId=e.target.value||null; await supabase.from('channels').update({parent_id:parentId}).eq('id',c.id);}}><option value="">Uncategorized</option>{categories.filter(cat=>cat.id!==c.id).map(cat=><option key={cat.id} value={cat.id}>{cat.name}</option>)}</select>}
 
         {c.type === 'voice' && occupants.length > 0 && (
           <ul className="ml-6 mt-0.5 space-y-0.5 pb-1">
