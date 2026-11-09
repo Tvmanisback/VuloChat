@@ -6,9 +6,11 @@ import { useSettings } from '../lib/settings';
 export default function ProfileDecorationOverlay({
   decorationId,
   forceDecoration = false,
+  allowFullProfile = false,
 }: {
   decorationId: string | null | undefined;
   forceDecoration?: boolean;
+  allowFullProfile?: boolean;
 }) {
   const items = useProfileDecorations();
   const { showDecorations } = useSettings();
@@ -29,7 +31,7 @@ export default function ProfileDecorationOverlay({
       src={src}
       alt=""
       aria-hidden="true"
-      className={isPortraitFrame
+      className={isPortraitFrame && allowFullProfile
         ? 'pointer-events-none absolute inset-0 z-0 h-full w-full object-contain'
         : 'pointer-events-none absolute left-0 top-0 z-10 h-28 w-full object-contain'}
     />
