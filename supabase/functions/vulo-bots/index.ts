@@ -6,7 +6,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, apikey, content-type, x-vulo-token",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-vulo-token",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
   "Content-Type": "application/json",
 };
@@ -17,7 +17,11 @@ const hash = async (s: string) => hex(await crypto.subtle.digest("SHA-256", new 
 const newToken = () => "vulo_" + crypto.randomUUID().replaceAll("-", "") + crypto.randomUUID().replaceAll("-", "");
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
+  if (req.method === "OPTIONS") {
+    // Echo the headers the browser asks to send, so a new client header can never fail the preflight.
+    const requested = req.headers.get("access-control-request-headers") || "";
+    return new Response("ok", { headers: { ...cors, "Access-Control-Allow-Headers": requested || cors["Access-Control-Allow-Headers"] } });
+  }
   if (req.method !== "POST") return reply({ error: "POST required" }, 405);
 
   const url = Deno.env.get("SUPABASE_URL")!;
