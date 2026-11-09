@@ -15,6 +15,8 @@ interface AuthState {
   loading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string, username: string) => Promise<void>;
+  resetPassword: (email: string) => Promise<void>;
+  updatePassword: (password: string) => Promise<void>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
   setStatus: (status: UserStatus) => Promise<void>;
@@ -118,6 +120,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (error) throw error;
   };
 
+  const resetPassword = async (email: string) => {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/?reset-password=true`,
+    });
+    if (error) throw error;
+  };
+
+  const updatePassword = async (password: string) => {
+    const { error } = await supabase.auth.updateUser({ password });
+    if (error) throw error;
+  };
+
   const signOut = async () => {
     if (session) {
       await supabase.from('profiles').update({ status: 'offline' }).eq('id', session.user.id);
@@ -146,7 +160,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthCtx.Provider
-      value={{ session, profile, loading, signIn, signUp, signOut, refreshProfile, setStatus, updateProfile }}
+      value={{ session, profile, loading, signIn, signUp, resetPassword, updatePassword, signOut, refreshProfile, setStatus, updateProfile }}
     >
       {children}
     </AuthCtx.Provider>
