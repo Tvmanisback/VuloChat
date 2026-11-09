@@ -6,6 +6,7 @@ import { Splash } from './components/ui';
 import { VoiceProvider } from './lib/voiceContext';
 import { supabase } from './lib/supabase';
 import DeveloperPortal from './components/DeveloperPortal';
+import PasswordRecoveryScreen from './components/PasswordRecoveryScreen';
 
 export default function App() {
   const { session, profile, loading } = useAuth();
@@ -29,6 +30,7 @@ export default function App() {
 
   if (window.location.pathname.includes('/developers')) return <DeveloperPortal />;
   if (loading) return <Splash />;
+  if (new URLSearchParams(window.location.search).get('reset-password') === 'true' && session) return <PasswordRecoveryScreen />;
   if (!session) return <AuthScreen />;
   if (!profile) return <Splash label="Setting up your profile…" />;
 
