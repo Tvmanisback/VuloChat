@@ -5,6 +5,14 @@ export type ThemeName = 'violet' | 'midnight' | 'forest' | 'light' | 'custom';
 export type PresetName = Exclude<ThemeName, 'custom'>;
 
 export interface ThemeColors {
+  rail: string;
+  side: string;
+  chat: string;
+  accent: string;
+  text: string;
+}
+
+export interface CustomThemeColors {
   primary: string;
   secondary: string;
 }
@@ -23,7 +31,7 @@ export type Token =
   | 'accent'
   | 'accentHover';
 
-export const CUSTOM_DEFAULT: ThemeColors = {
+export const CUSTOM_DEFAULT: CustomThemeColors = {
   primary: '#171923',
   secondary: '#805dff',
 };
@@ -103,7 +111,7 @@ function derive(c: ThemeColors, bright: string, muted: string): Record<Token, st
 }
 
 /** Full palette for the chosen theme. Invalid colors fall back to the defaults. */
-export function resolvePalette(name: ThemeName, custom: ThemeColors): Record<Token, string> {
+export function resolvePalette(name: ThemeName, custom: CustomThemeColors): Record<Token, string> {
   if (name === 'custom') {
     const primary = safe(custom.primary, CUSTOM_DEFAULT.primary);
     const secondary = safe(custom.secondary, CUSTOM_DEFAULT.secondary);
