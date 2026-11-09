@@ -5,6 +5,10 @@ export interface Profile {
   id: string;
   username: string;
   display_name: string | null;
+  name_font: 'default' | 'serif' | 'mono' | 'rounded' | 'display';
+  name_effect: 'none' | 'gradient' | 'neon' | 'glow' | 'outline';
+  name_color: string;
+  name_color_secondary: string;
   avatar_url: string | null;
   animated_avatar: boolean;
   decoration_id: string | null;
