@@ -127,9 +127,10 @@ function BotsTab({ data, userId }: { data: ServerData; userId: string }) {
     if(err){setError(err.message);return;}
     await load();
   };
-  const openProfile=(bot:any)=>{
+  const openProfile=async(bot:any)=>{
+    const {data:profileRow}=await supabase.from('profiles').select('display_name,avatar_url,banner_url,about').eq('id',bot.profile_id).maybeSingle();
     setEditing(bot);
-    setProfile({display_name:bot.name||'',avatar_url:bot.avatar_url||'',banner_url:bot.banner_url||'',about:bot.about||bot.description||''});
+    setProfile({display_name:profileRow?.display_name||bot.name||'',avatar_url:profileRow?.avatar_url||'',banner_url:profileRow?.banner_url||'',about:profileRow?.about||bot.description||''});
   };
   const saveProfile=async()=>{
     if(!editing)return;
@@ -177,7 +178,7 @@ function BotsTab({ data, userId }: { data: ServerData; userId: string }) {
         <Button variant="secondary" className="mt-3 py-1.5" onClick={()=>openProfile(bot)}>Edit bot profile</Button>
       </div>;
     })}</div>}
-    <p className="mt-5 text-xs text-vulo-muted">SDKs: <a className="text-[#00a8fc] hover:underline" href="https://github.com/Tvmanisback/VuloChat/tree/main/sdk" target="_blank" rel="noreferrer">Vulo.js / Vulo.py</a> · <a className="text-[#00a8fc] hover:underline" href="https://github.com/Tvmanisback/VuloChat/blob/main/docs/BOT_API.md" target="_blank" rel="noreferrer">API documentation</a></p>
+    <p className="mt-5 text-xs text-vulo-muted"><a className="mr-3 text-[#00a8fc] hover:underline" href="./developers.html">Open Developer Portal</a> · SDKs: <a className="text-[#00a8fc] hover:underline" href="https://github.com/Tvmanisback/VuloChat/tree/main/sdk" target="_blank" rel="noreferrer">Vulo.js / Vulo.py</a> · <a className="text-[#00a8fc] hover:underline" href="https://github.com/Tvmanisback/VuloChat/blob/main/docs/BOT_API.md" target="_blank" rel="noreferrer">API documentation</a></p>
   </Section>;
 }
 
