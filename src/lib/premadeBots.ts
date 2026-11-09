@@ -41,3 +41,16 @@ export const PREMADE_BOTS: Record<string, PremadeBotInfo> = {
     ],
   },
 };
+
+// Supabase reports any non-2xx answer as "Edge Function returned a non-2xx status code". The real reason
+// (for example "Turn on Developer mode") is in the response body, so read that instead.
+export async function errorMessage(err: unknown): Promise<string> {
+  const context = (err as { context?: Response })?.context;
+  try {
+    const body = await context?.json();
+    if (body?.error) return String(body.error);
+  } catch {
+    // The body was not JSON; fall back to the generic message.
+  }
+  return err instanceof Error ? err.message : 'Something went wrong. Try again.';
+}

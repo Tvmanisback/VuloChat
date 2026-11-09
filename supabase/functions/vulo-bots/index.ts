@@ -39,6 +39,19 @@ Deno.serve(async (req) => {
     return error || !user ? null : user;
   };
 
+  // Every bot needs its own account, because profiles.id must match an auth user. The password is random
+  // and never shown, so nobody can sign in as the bot. Only the bot's token works.
+  const createBotAccount = async () => {
+    const { data, error } = await admin.auth.admin.createUser({
+      email: `bot-${crypto.randomUUID()}@bots.vulochat.com`,
+      password: newToken(),
+      email_confirm: true,
+      user_metadata: { is_bot: true },
+    });
+    if (error || !data.user) throw error ?? new Error("Could not create the bot account");
+    return data.user.id;
+  };
+
   // Creating bots and regenerating tokens need Developer mode (Settings → Developer).
   const isDeveloper = async (userId: string) => {
     const { data } = await admin.from("profiles").select("developer_mode").eq("id", userId).maybeSingle();
@@ -92,7 +105,7 @@ Deno.serve(async (req) => {
         .eq("enabled", true)
         .maybeSingle();
       if (!template) return reply({ error: "Template not found" }, 404);
-      const profileId = crypto.randomUUID();
+      const profileId = await createBotAccount();
       const name = String(body.name || template.name).trim().slice(0, 80);
       const username = "vulo_bot_" + profileId.replaceAll("-", "").slice(0, 16);
       const { error: profileErr } = await admin.from("profiles").insert({
@@ -118,7 +131,7 @@ Deno.serve(async (req) => {
       const name = String(body.name || "").trim().slice(0, 80);
       const description = String(body.description || "").trim().slice(0, 500);
       if (name.length < 2) return reply({ error: "Bot name must be at least 2 characters" }, 400);
-      const profileId = crypto.randomUUID();
+      const profileId = await createBotAccount();
       const username = "vulo_bot_" + profileId.replaceAll("-", "").slice(0, 16);
       const { error: profileErr } = await admin.from("profiles").insert({
         id: profileId, username, display_name: name, avatar_url: null, banner_url: null, about: description, status: "offline",
@@ -255,6 +268,7 @@ Deno.serve(async (req) => {
     return reply({ error: "Unknown action" }, 400);
   } catch (e) {
     console.error(e);
-    return reply({ error: e instanceof Error ? e.message : "Internal error" }, 500);
+    // Database errors are plain objects, not Error instances, so read .message from either form.
+    return reply({ error: (e as { message?: string })?.message || "Internal error" }, 500);
   }
 });

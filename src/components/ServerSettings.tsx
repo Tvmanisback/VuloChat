@@ -7,7 +7,7 @@ import { useDecorations } from '../lib/decorations';
 import type { Role } from '../lib/types';
 import type { ServerData } from '../lib/useServer';
 import { Button, ErrorText, Field, inputClass } from './ui';
-import { PORTAL_URL, PREMADE_BOTS, SCRIPTS_URL } from '../lib/premadeBots';
+import { PORTAL_URL, PREMADE_BOTS, SCRIPTS_URL, errorMessage } from '../lib/premadeBots';
 
 type Tab = 'overview' | 'roles' | 'emojis' | 'stickers' | 'members' | 'bots';
 
@@ -120,7 +120,8 @@ function BotsTab({ data, userId }: { data: ServerData; userId: string }) {
 
   const invoke = async (body: any) => {
     const { data: result, error: err } = await supabase.functions.invoke('vulo-bots', { body });
-    if (err || result?.error) throw new Error(err?.message || result.error);
+    if (err) throw new Error(await errorMessage(err));
+    if (result?.error) throw new Error(result.error);
     return result;
   };
 

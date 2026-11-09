@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../lib/auth';
 import { supabase } from '../lib/supabase';
-import { PORTAL_URL } from '../lib/premadeBots';
+import { PORTAL_URL, errorMessage } from '../lib/premadeBots';
 import { Button, ErrorText, Field, inputClass } from './ui';
 
 interface OwnBot {
@@ -14,7 +14,8 @@ interface OwnBot {
 
 async function invokeBots(body: Record<string, unknown>) {
   const { data: result, error: err } = await supabase.functions.invoke('vulo-bots', { body });
-  if (err || result?.error) throw new Error(err?.message || result.error);
+  if (err) throw new Error(await errorMessage(err));
+  if (result?.error) throw new Error(result.error);
   return result;
 }
 
