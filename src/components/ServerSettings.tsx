@@ -35,7 +35,8 @@ export default function ServerSettings({ data, userId, onClose, onLeftOrDeleted 
     { id: 'roles', label: 'Roles', show: canRoles },
     { id: 'emojis', label: 'Emojis', show: canManageServer },
     { id: 'stickers', label: 'Stickers', show: canManageServer },
-    { id: 'members', label: 'Members', show: true },\n    { id: 'bots', label: 'Bots', show: canManageServer },
+    { id: 'members', label: 'Members', show: true },
+    { id: 'bots', label: 'Bots', show: canManageServer },
   ];
   const visible = tabs.filter((t) => t.show);
   const current = visible.find((t) => t.id === tab) ? tab : visible[0]?.id ?? 'members';
@@ -63,7 +64,8 @@ export default function ServerSettings({ data, userId, onClose, onLeftOrDeleted 
           {current === 'roles' && <RolesTab data={data} />}
           {current === 'emojis' && <EmojisTab serverId={data.server.id} userId={userId} />}
           {current === 'stickers' && <StickersTab serverId={data.server.id} userId={userId} />}
-          {current === 'members' && <MembersTab data={data} userId={userId} />}\n          {current === 'bots' && <BotsTab data={data} userId={userId} />}
+          {current === 'members' && <MembersTab data={data} userId={userId} />}
+          {current === 'bots' && <BotsTab data={data} userId={userId} />}
         </div>
       </div>
 
