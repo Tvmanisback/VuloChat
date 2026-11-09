@@ -1098,10 +1098,10 @@ function ConnectionsTab() {
   const disconnect = async (provider:'spotify'|'steam') => { setBusy(provider); const {error}=await supabase.functions.invoke('connections',{body:{action:'disconnect',provider}}); if(error)setError('Could not disconnect.'); else await load(); setBusy(''); };
   const has=(provider:string)=>items.some(x=>x.provider===provider);
   return <Section title="Connections">
-    <p className="mb-5 text-sm text-vulo-muted">Connect Spotify to show your currently playing track, or Steam to link your gaming profile and show your current game when available.</p>
+    <p className="mb-5 text-sm text-vulo-muted">Connect Spotify to show your currently playing track. Steam integration is coming soon.</p>
     {(['spotify','steam'] as const).map(provider=><div key={provider} className="mb-4 rounded-lg bg-vulo-side p-4">
       <div className="mb-3 flex items-center justify-between"><span className="font-semibold capitalize text-vulo-bright">{provider}</span><span className="text-xs text-vulo-muted">{has(provider)?'Connected':'Not connected'}</span></div>
-      {has(provider)?<Button variant="secondary" disabled={!!busy} onClick={()=>void disconnect(provider)}>Disconnect {provider}</Button>:<Button disabled={!!busy} onClick={()=>void connect(provider)}>{busy===provider?'Connecting…':'Connect '+provider}</Button>}
+      {provider==='steam' ? <span className="inline-flex rounded bg-vulo-rail px-3 py-2 text-sm font-semibold text-vulo-muted">Coming soon</span> : has(provider)?<Button variant="secondary" disabled={!!busy} onClick={()=>void disconnect(provider)}>Disconnect {provider}</Button>:<Button disabled={!!busy} onClick={()=>void connect(provider)}>{busy===provider?'Connecting…':'Connect '+provider}</Button>}
     </div>)}
     <ErrorText>{error}</ErrorText>
     <p className="mt-4 text-xs text-vulo-muted">Activity refreshes about once per minute while VuloChat is open. Steam game activity requires a Steam Web API key and a public Game details setting on your Steam profile. Disconnect at any time.</p>
