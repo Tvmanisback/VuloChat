@@ -1085,7 +1085,15 @@ function ConnectionsTab() {
   const [busy, setBusy] = useState('');
   const [error, setError] = useState('');
   const load = async () => { const {data,error}=await supabase.functions.invoke('connections',{body:{action:'status'}}); if(error) setError('Could not load connections.'); else setItems(data?.connections||[]); };
-  useEffect(()=>{ void load(); },[]);
+  useEffect(()=>{
+    void load();
+    const timer=window.setInterval(async()=>{
+      await supabase.functions.invoke('connections',{body:{action:'refresh_spotify'}});
+      await supabase.functions.invoke('connections',{body:{action:'refresh_steam'}});
+      void load();
+    },60000);
+    return ()=>window.clearInterval(timer);
+  },[]);
   const connect = async (provider:'spotify'|'steam') => { setBusy(provider); setError(''); const {data,error}=await supabase.functions.invoke('connections',{body:{action:provider==='spotify'?'connect_spotify':'connect_steam'}}); if(error||!data?.url){setError(data?.error==='spotify_not_configured'?'Spotify credentials have not been added to Supabase yet.':'Could not start connection.');setBusy('');return;} location.assign(data.url); };
   const disconnect = async (provider:'spotify'|'steam') => { setBusy(provider); const {error}=await supabase.functions.invoke('connections',{body:{action:'disconnect',provider}}); if(error)setError('Could not disconnect.'); else await load(); setBusy(''); };
   const has=(provider:string)=>items.some(x=>x.provider===provider);
@@ -1096,6 +1104,6 @@ function ConnectionsTab() {
       {has(provider)?<Button variant="secondary" disabled={!!busy} onClick={()=>void disconnect(provider)}>Disconnect {provider}</Button>:<Button disabled={!!busy} onClick={()=>void connect(provider)}>{busy===provider?'Connecting…':'Connect '+provider}</Button>}
     </div>)}
     <ErrorText>{error}</ErrorText>
-    <p className="mt-4 text-xs text-vulo-muted">Disconnect at any time. Your service passwords are never displayed on VuloChat.</p>
+    <p className="mt-4 text-xs text-vulo-muted">Activity refreshes about once per minute while VuloChat is open. Steam game activity requires a Steam Web API key and a public Game details setting on your Steam profile. Disconnect at any time.</p>
   </Section>;
 }
