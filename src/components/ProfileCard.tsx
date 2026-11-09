@@ -57,13 +57,34 @@ export default function ProfileCard({ profile, onClose }: { profile: Profile; on
         role="dialog"
         aria-modal="true"
         aria-label={`${name}'s profile`}
-        className="relative w-full max-w-[340px] overflow-hidden rounded-lg bg-vulo-rail shadow-2xl"
+        className="relative max-h-[90vh] w-full max-w-[340px] overflow-y-auto overscroll-contain rounded-lg bg-vulo-rail shadow-2xl"
       >
         <ProfileDecorationOverlay decorationId={profile.profile_decoration_id} />
         {/* Banner: the uploaded image, or a plain gradient when none is set. GIF banners play as they load. */}
         <div className="relative z-0 h-28 w-full overflow-hidden" style={{ background: bannerBackground(profile.accent_color) }}>
           {profile.banner_url && <img src={profile.banner_url} alt="" className="h-full w-full object-cover" />}
         </div>
+
+              {activity.length > 0 && (
+                <div className="mt-3 border-t border-vulo-line pt-3">
+                  <p className="mb-2 text-xs font-bold uppercase tracking-wide text-vulo-muted">Listening / Playing</p>
+                  <div className="space-y-2">
+                    {activity.map((item) => (
+                      <div key={item.provider} className="rounded-lg bg-vulo-side p-2">
+                        <div className="flex items-center gap-3">
+                          {item.image_url && <img src={item.image_url} alt="" className="h-10 w-10 rounded object-cover" />}
+                          <span className="min-w-0">
+                            <span className="block text-[10px] font-bold uppercase text-vulo-muted">{item.provider === 'spotify' ? 'Spotify' : 'Steam'}</span>
+                            {item.external_url ? <a href={item.external_url} target="_blank" rel="noopener noreferrer" className="block truncate text-sm font-semibold text-vulo-bright hover:underline">{item.title}</a> : <span className="block truncate text-sm font-semibold text-vulo-bright">{item.title}</span>}
+                            {item.subtitle && <span className="block truncate text-xs text-vulo-muted">{item.subtitle}</span>}
+                            {item.provider === 'spotify' && item.provider_username && <a href={item.provider_profile_url || undefined} target="_blank" rel="noopener noreferrer" className="mt-1 block truncate text-xs text-vulo-accent hover:underline">Spotify · {item.provider_username}</a>}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
         <div className="relative z-10 isolate overflow-visible px-4 pb-4">
           <div className="relative z-20 -mt-12 mb-2 w-fit rounded-full bg-vulo-rail p-1.5">
@@ -96,27 +117,6 @@ export default function ProfileCard({ profile, onClose }: { profile: Profile; on
                     </li>
                   ))}
                 </ul>
-              )}
-
-              {activity.length > 0 && (
-                <div className="mt-3 border-t border-vulo-line pt-3">
-                  <p className="mb-2 text-xs font-bold uppercase tracking-wide text-vulo-muted">Listening / Playing</p>
-                  <div className="space-y-2">
-                    {activity.map((item) => (
-                      <div key={item.provider} className="rounded-lg bg-vulo-side p-2">
-                        <div className="flex items-center gap-3">
-                          {item.image_url && <img src={item.image_url} alt="" className="h-10 w-10 rounded object-cover" />}
-                          <span className="min-w-0">
-                            <span className="block text-[10px] font-bold uppercase text-vulo-muted">{item.provider === 'spotify' ? 'Spotify' : 'Steam'}</span>
-                            {item.external_url ? <a href={item.external_url} target="_blank" rel="noopener noreferrer" className="block truncate text-sm font-semibold text-vulo-bright hover:underline">{item.title}</a> : <span className="block truncate text-sm font-semibold text-vulo-bright">{item.title}</span>}
-                            {item.subtitle && <span className="block truncate text-xs text-vulo-muted">{item.subtitle}</span>}
-                            {item.provider === 'spotify' && item.provider_username && <a href={item.provider_profile_url || undefined} target="_blank" rel="noopener noreferrer" className="mt-1 block truncate text-xs text-vulo-accent hover:underline">Spotify · {item.provider_username}</a>}
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
               )}
 
               {profile.about && (
