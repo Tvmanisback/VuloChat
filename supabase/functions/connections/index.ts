@@ -16,16 +16,35 @@ async function currentUser(req:Request) {
   const {data,error} = await admin.auth.getUser(token);
   return error ? null : data.user;
 }
-function randomState(){const b=crypto.getRandomValues(new Uint8Array(32));return btoa(String.fromCharCode(...b)).replaceAll("+","-").replaceAll("/","_").replaceAll("=","");}
-async function saveState(state:string,userId:string,provider:string){
-  const {error}=await admin.schema("connections_private").from("oauth_states").insert({state,user_id:userId,provider,expires_at:new Date(Date.now()+10*60*1000).toISOString()});
-  if(error) throw error;
+// The sign-in state is a signed token that carries the user, the provider and an expiry time.
+// Checking it needs no database lookup, so it cannot fail just because a stored row is missing.
+const enc = new TextEncoder();
+const b64url = (bytes: Uint8Array) => btoa(String.fromCharCode(...bytes)).replaceAll("+","-").replaceAll("/","_").replaceAll("=","");
+const fromB64url = (s: string) => Uint8Array.from(atob(s.replaceAll("-","+").replaceAll("_","/")), (c) => c.charCodeAt(0));
+let stateKeyPromise: Promise<CryptoKey> | null = null;
+function stateKey(): Promise<CryptoKey> {
+  stateKeyPromise ??= crypto.subtle.importKey("raw", enc.encode("vulo-oauth-state:" + SERVICE), { name: "HMAC", hash: "SHA-256" }, false, ["sign", "verify"]);
+  return stateKeyPromise;
 }
-async function takeState(state:string,provider:string){
-  const {data,error}=await admin.schema("connections_private").from("oauth_states").select("*").eq("state",state).eq("provider",provider).gt("expires_at",new Date().toISOString()).maybeSingle();
-  if(error||!data) return null;
-  await admin.schema("connections_private").from("oauth_states").delete().eq("state",state);
-  return data.user_id as string;
+async function makeState(userId:string,provider:string){
+  const payload = b64url(enc.encode(JSON.stringify({u:userId,p:provider,e:Date.now()+10*60*1000,n:b64url(crypto.getRandomValues(new Uint8Array(12)))})));
+  const sig = new Uint8Array(await crypto.subtle.sign("HMAC", await stateKey(), enc.encode(payload)));
+  return payload + "." + b64url(sig);
+}
+async function takeState(state:string,provider:string): Promise<string | null> {
+  const [payload, sig] = state.split(".");
+  if (!payload || !sig) return null;
+  try {
+    const valid = await crypto.subtle.verify("HMAC", await stateKey(), fromB64url(sig), enc.encode(payload));
+    if (!valid) { console.error("connections: sign-in state signature does not match"); return null; }
+    const data = JSON.parse(new TextDecoder().decode(fromB64url(payload))) as {u:string;p:string;e:number};
+    if (data.p !== provider) { console.error("connections: sign-in state is for another provider"); return null; }
+    if (!(data.e > Date.now())) { console.error("connections: sign-in state has expired"); return null; }
+    return data.u;
+  } catch (e) {
+    console.error("connections: could not read sign-in state", e);
+    return null;
+  }
 }
 async function spotifyRefresh(userId:string){
   const {data:account}=await admin.schema("connections_private").from("accounts").select("*").eq("user_id",userId).eq("provider","spotify").maybeSingle();
@@ -109,12 +128,12 @@ Deno.serve(async(req)=>{
   let body:any;try{body=await req.json()}catch{return reply({error:"bad_request"},400)}
   if(body.action==="connect_spotify"){
     if(!SPOTIFY_ID||!SPOTIFY_SECRET)return reply({error:"spotify_not_configured"},503);
-    const state=randomState();await saveState(state,user.id,"spotify");
+    const state=await makeState(user.id,"spotify");
     const params=new URLSearchParams({client_id:SPOTIFY_ID,response_type:"code",redirect_uri:CALLBACK,scope:"user-read-currently-playing user-read-playback-state",state});
     return reply({url:"https://accounts.spotify.com/authorize?"+params.toString()});
   }
   if(body.action==="connect_steam"){
-    const state=randomState();await saveState(state,user.id,"steam");
+    const state=await makeState(user.id,"steam");
     const returnTo=CALLBACK+"?state="+encodeURIComponent(state);
     const realm=new URL(CALLBACK).origin;
     const params=new URLSearchParams({"openid.ns":"http://specs.openid.net/auth/2.0","openid.mode":"checkid_setup","openid.return_to":returnTo,"openid.realm":realm,"openid.identity":"http://specs.openid.net/auth/2.0/identifier_select","openid.claimed_id":"http://specs.openid.net/auth/2.0/identifier_select"});
