@@ -79,54 +79,105 @@ export default function ServerSettings({ data, userId, onClose, onLeftOrDeleted 
 
 
 function BotsTab({ data, userId }: { data: ServerData; userId: string }) {
-  const [bots, setBots] = useState<{id:string;name:string;description:string;profile_id:string}[]>([]);
+  const [bots,setBots]=useState<any[]>([]);
+  const [templates,setTemplates]=useState<any[]>([]);
+  const [installed,setInstalled]=useState<any[]>([]);
   const [name,setName]=useState('');
   const [description,setDescription]=useState('');
-  const [token,setToken]=useState('');
   const [error,setError]=useState<string|null>(null);
+  const [token,setToken]=useState('');
   const [busy,setBusy]=useState(false);
+  const [editing,setEditing]=useState<any|null>(null);
+  const [profile,setProfile]=useState({display_name:'',avatar_url:'',banner_url:'',about:''});
+  const [welcome,setWelcome]=useState('Welcome {username} to {server}!');
+  const [welcomeChannel,setWelcomeChannel]=useState('');
   const serverId=data.server!.id;
   const load=async()=>{
-    const {data:rows,error:err}=await supabase.from('bots').select('id,name,description,profile_id').eq('owner_id',userId).order('created_at');
-    if(err) setError(err.message); else setBots((rows||[]) as typeof bots);
+    const [mine,market,active]=await Promise.all([
+      supabase.from('bots').select('id,name,description,profile_id').eq('owner_id',userId).order('created_at'),
+      supabase.from('bot_templates').select('*').eq('enabled',true),
+      supabase.from('server_bots').select('bot_id,enabled,settings,permissions,bots(id,name,description,profile_id)').eq('server_id',serverId)
+    ]);
+    if(mine.error||market.error||active.error){setError(mine.error?.message||market.error?.message||active.error?.message);return;}
+    setBots(mine.data||[]);setTemplates(market.data||[]);setInstalled(active.data||[]);
   };
-  useEffect(()=>{void load();},[userId]);
-  const create=async()=>{
+  useEffect(()=>{void load();},[userId,serverId]);
+  const invoke=async(body:any)=>{
+    const {data:result,error:err}=await supabase.functions.invoke('vulo-bots',{body});
+    if(err||result?.error) throw new Error(err?.message||result.error);
+    return result;
+  };
+  const create=async(templateId?:string)=>{
     setBusy(true);setError(null);setToken('');
-    const {data:result,error:err}=await supabase.functions.invoke('vulo-bots',{body:{action:'create',name,description}});
-    setBusy(false);
-    if(err||result?.error){setError(err?.message||result.error);return;}
-    setBots(old=>[...old,result.bot]);setToken(result.token);setName('');setDescription('');
+    try {
+      const result=await invoke(templateId?{action:'create_from_template',template_id:templateId,name:name||undefined}:{action:'create',name,description});
+      setBots(old=>[...old,result.bot]);setToken(result.token);setName('');setDescription('');
+    } catch(e){setError(e instanceof Error?e.message:'Could not create bot.');}
+    setBusy=false;
   };
   const install=async(botId:string)=>{
     setBusy(true);setError(null);
-    const {data:result,error:err}=await supabase.functions.invoke('vulo-bots',{body:{action:'install',bot_id:botId,server_id:serverId}});
-    setBusy(false);
-    if(err||result?.error)setError(err?.message||result.error);
-    else setError('Bot installed and added to the server member list.');
+    try { await invoke({action:'install',bot_id:botId,server_id:serverId}); await load(); }
+    catch(e){setError(e instanceof Error?e.message:'Could not install bot.');}
+    setBusy=false;
   };
+  const configure=async(botId:string,patch:any)=>{
+    const current=installed.find(x=>x.bot_id===botId);
+    const {error:err}=await supabase.from('server_bots').update(patch).eq('server_id',serverId).eq('bot_id',botId);
+    if(err){setError(err.message);return;}
+    await load();
+  };
+  const openProfile=(bot:any)=>{
+    setEditing(bot);
+    setProfile({display_name:bot.name||'',avatar_url:bot.avatar_url||'',banner_url:bot.banner_url||'',about:bot.about||bot.description||''});
+  };
+  const saveProfile=async()=>{
+    if(!editing)return;
+    setBusy(true);setError(null);
+    try{await invoke({action:'edit_profile',bot_id:editing.id,...profile});setEditing(null);await load();}
+    catch(e){setError(e instanceof Error?e.message:'Could not update bot profile.');}
+    setBusy(false);
+  };
+  const installedIds=new Set(installed.map(x=>x.bot_id));
   return <Section title="Bots">
-    <p className="mb-4 text-sm text-vulo-muted">Bots run on their owner's computer. VuloChat does not host bot processes. Create a bot, then install it into this server.</p>
+    <p className="mb-4 text-sm text-vulo-muted">Bots run on their owner's computer. VuloChat provides the API and server membership, but never hosts the bot process.</p>
     <ErrorText>{error}</ErrorText>
-    {token && <div className="mb-5 rounded border border-vulo-green/40 bg-vulo-green/10 p-4">
-      <p className="mb-2 font-semibold text-vulo-bright">Copy this bot token now</p>
-      <code className="block break-all select-all text-sm">{token}</code>
-      <p className="mt-2 text-xs text-vulo-muted">It is shown once. Store it privately; never publish it.</p>
+    {token&&<div className="mb-5 rounded border border-vulo-green/40 bg-vulo-green/10 p-4"><p className="mb-2 font-semibold text-vulo-bright">Copy this token now — it is only shown once</p><code className="block break-all select-all text-sm">{token}</code><p className="mt-2 text-xs text-vulo-muted">Keep it private. Regenerate it if it is exposed.</p></div>}
+    {editing&&<div className="mb-6 rounded bg-vulo-side p-4">
+      <h3 className="mb-3 font-semibold text-vulo-bright">Edit {editing.name}'s profile</h3>
+      <Field label="Display name"><input className={inputClass} value={profile.display_name} onChange={e=>setProfile({...profile,display_name:e.target.value})}/></Field>
+      <Field label="Profile picture URL"><input className={inputClass} value={profile.avatar_url} onChange={e=>setProfile({...profile,avatar_url:e.target.value})} placeholder="https://..."/></Field>
+      <Field label="Banner URL"><input className={inputClass} value={profile.banner_url} onChange={e=>setProfile({...profile,banner_url:e.target.value})} placeholder="https://..."/></Field>
+      <Field label="About"><input className={inputClass} value={profile.about} onChange={e=>setProfile({...profile,about:e.target.value})}/></Field>
+      <div className="flex gap-2"><Button onClick={()=>void saveProfile()} disabled={busy}>Save profile</Button><Button variant="secondary" onClick={()=>setEditing(null)}>Cancel</Button></div>
     </div>}
     <div className="mb-6 rounded bg-vulo-side p-4">
-      <h3 className="mb-3 font-semibold text-vulo-bright">Create a bot</h3>
-      <Field label="Bot name"><input className={inputClass} value={name} onChange={e=>setName(e.target.value)} maxLength={80} /></Field>
-      <Field label="Description"><input className={inputClass} value={description} onChange={e=>setDescription(e.target.value)} maxLength={500} /></Field>
-      <Button onClick={()=>void create()} disabled={busy||name.trim().length<2}>{busy?'Creating…':'Create bot & token'}</Button>
+      <h3 className="mb-3 font-semibold text-vulo-bright">Bot marketplace</h3>
+      {templates.length===0?<p className="text-sm text-vulo-muted">No premade bots are available yet.</p>:templates.map(t=><div key={t.id} className="flex items-center gap-3 border-b border-vulo-line py-3 last:border-0">
+        <div className="min-w-0 flex-1"><p className="font-medium text-vulo-bright">{t.name}</p><p className="text-xs text-vulo-muted">{t.description}</p><p className="mt-1 text-[11px] uppercase text-vulo-muted">{t.category}</p></div>
+        <Button className="py-1.5" disabled={busy} onClick={()=>void create(t.id)}>Create {t.name}</Button>
+      </div>)}
+    </div>
+    <div className="mb-6 rounded bg-vulo-side p-4">
+      <h3 className="mb-3 font-semibold text-vulo-bright">Create your own bot</h3>
+      <Field label="Bot name"><input className={inputClass} value={name} onChange={e=>setName(e.target.value)} maxLength={80}/></Field>
+      <Field label="Description"><input className={inputClass} value={description} onChange={e=>setDescription(e.target.value)} maxLength={500}/></Field>
+      <Button onClick={()=>void create()} disabled={busy||name.trim().length<2}>Create bot & token</Button>
     </div>
     <h3 className="mb-3 font-semibold text-vulo-bright">Your bots</h3>
-    {bots.length===0?<p className="text-sm text-vulo-muted">You have not created any bots yet.</p>:<ul className="divide-y divide-vulo-line rounded bg-vulo-side">
-      {bots.map(bot=><li key={bot.id} className="flex items-center gap-3 px-4 py-3">
-        <div className="min-w-0 flex-1"><p className="font-medium text-vulo-bright">{bot.name}</p><p className="truncate text-xs text-vulo-muted">{bot.description||'No description'}</p></div>
-        <Button className="py-1.5" onClick={()=>void install(bot.id)} disabled={busy}>Add to server</Button>
-      </li>)}
-    </ul>}
-    <p className="mt-4 text-xs text-vulo-muted">SDKs and API documentation: <a className="text-[#00a8fc] hover:underline" href="https://github.com/Tvmanisback/VuloChat/tree/main/sdk" target="_blank" rel="noreferrer">Vulo.js / Vulo.py</a> · <a className="text-[#00a8fc] hover:underline" href="https://github.com/Tvmanisback/VuloChat/blob/main/docs/BOT_API.md" target="_blank" rel="noreferrer">API docs</a></p>
+    {bots.length===0?<p className="text-sm text-vulo-muted">No bots created yet.</p>:<ul className="mb-6 divide-y divide-vulo-line rounded bg-vulo-side">{bots.map(bot=><li key={bot.id} className="flex items-center gap-3 px-4 py-3"><div className="min-w-0 flex-1"><p className="font-medium text-vulo-bright">{bot.name}</p><p className="truncate text-xs text-vulo-muted">{bot.description}</p></div><Button variant="secondary" className="py-1.5" onClick={()=>openProfile(bot)}>Profile</Button>{!installedIds.has(bot.id)&&<Button className="py-1.5" disabled={busy} onClick={()=>void install(bot.id)}>Add to server</Button>}</li>)}</ul>}
+    <h3 className="mb-3 font-semibold text-vulo-bright">Installed bots</h3>
+    {installed.length===0?<p className="text-sm text-vulo-muted">No bots installed in this server.</p>:<div className="space-y-3">{installed.map(row=>{
+      const bot=row.bots; if(!bot)return null;
+      const settings=row.settings||{};
+      return <div key={row.bot_id} className="rounded bg-vulo-side p-4">
+        <div className="mb-3 flex items-center justify-between"><div><p className="font-medium text-vulo-bright">{bot.name}</p><p className="text-xs text-vulo-muted">{bot.description}</p></div><label className="flex items-center gap-2 text-xs text-vulo-muted"><input type="checkbox" checked={row.enabled} onChange={e=>void configure(bot.id,{enabled:e.target.checked})}/>Enabled</label></div>
+        {bot.name.toLowerCase().includes('welcomer')&&<><Field label="Welcome message"><input className={inputClass} value={settings.welcome_message??welcome} onChange={e=>setWelcome(e.target.value)}/></Field><Field label="Welcome channel ID"><input className={inputClass} value={settings.channel_id??welcomeChannel} onChange={e=>setWelcomeChannel(e.target.value)} placeholder="Channel UUID"/></Field><Button variant="secondary" className="py-1.5" onClick={()=>void configure(bot.id,{settings:{...settings,welcome_message:welcome,channel_id:welcomeChannel}})}>Save Welcomer settings</Button></>}
+        <div className="mt-3 flex flex-wrap gap-3 text-xs text-vulo-muted"><label><input type="checkbox" checked={row.permissions?.read_messages===true} onChange={e=>void configure(bot.id,{permissions:{...row.permissions,read_messages:e.target.checked}})}/> Read messages</label><label><input type="checkbox" checked={row.permissions?.send_messages===true} onChange={e=>void configure(bot.id,{permissions:{...row.permissions,send_messages:e.target.checked}})}/> Send messages</label></div>
+        <Button variant="secondary" className="mt-3 py-1.5" onClick={()=>openProfile(bot)}>Edit bot profile</Button>
+      </div>;
+    })}</div>}
+    <p className="mt-5 text-xs text-vulo-muted">SDKs: <a className="text-[#00a8fc] hover:underline" href="https://github.com/Tvmanisback/VuloChat/tree/main/sdk" target="_blank" rel="noreferrer">Vulo.js / Vulo.py</a> · <a className="text-[#00a8fc] hover:underline" href="https://github.com/Tvmanisback/VuloChat/blob/main/docs/BOT_API.md" target="_blank" rel="noreferrer">API documentation</a></p>
   </Section>;
 }
 
