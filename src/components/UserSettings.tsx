@@ -333,6 +333,10 @@ function ProfileTab() {
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [visibleBadges, setVisibleBadges] = useState<string[]>(profile?.visible_badge_ids ?? []);
+  const [nameFont, setNameFont] = useState(profile?.name_font ?? 'default');
+  const [nameEffect, setNameEffect] = useState(profile?.name_effect ?? 'none');
+  const [nameColor, setNameColor] = useState(profile?.name_color ?? '#ffffff');
+  const [nameColorSecondary, setNameColorSecondary] = useState(profile?.name_color_secondary ?? '#8b5cf6');
   const [savingBadges, setSavingBadges] = useState(false);
 
   useEffect(() => {
@@ -475,6 +479,61 @@ function ProfileTab() {
           <Button variant="secondary" onClick={() => void saveAccent(null)} disabled={accentBusy}>
             Reset
           </Button>
+        </div>
+      </div>
+
+      <div className="mt-8 rounded-lg bg-vulo-side p-4">
+        <p className="mb-1 text-xs font-bold uppercase tracking-wide text-vulo-muted">Name effects</p>
+        <p className="mb-4 text-sm text-vulo-muted">Customize how your display name appears in profiles, member lists, and chat.</p>
+        <div className="mb-4 rounded bg-vulo-rail px-3 py-4 text-center">
+          <p className="text-xl font-bold" style={{
+            fontFamily: nameFont === 'serif' ? 'Georgia, serif' : nameFont === 'mono' ? 'monospace' : nameFont === 'rounded' ? '"Trebuchet MS", sans-serif' : nameFont === 'display' ? 'Impact, sans-serif' : 'inherit',
+            color: nameEffect === 'gradient' ? 'transparent' : nameColor,
+            backgroundImage: nameEffect === 'gradient' ? `linear-gradient(100deg, ${nameColor}, ${nameColorSecondary})` : undefined,
+            backgroundClip: nameEffect === 'gradient' ? 'text' : undefined,
+            WebkitBackgroundClip: nameEffect === 'gradient' ? 'text' : undefined,
+            WebkitTextFillColor: nameEffect === 'gradient' ? 'transparent' : undefined,
+            textShadow: nameEffect === 'neon' ? `0 0 5px ${nameColor}, 0 0 16px ${nameColorSecondary}` : nameEffect === 'glow' ? `0 0 8px ${nameColor}, 0 0 18px ${nameColorSecondary}` : undefined,
+            WebkitTextStroke: nameEffect === 'outline' ? `1px ${nameColorSecondary}` : undefined,
+          }}>{profile.display_name || profile.username}</p>
+          <p className="mt-1 text-xs text-vulo-muted">Live preview</p>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Field label="Preset font">
+            <select className={inputClass} value={nameFont} onChange={(e) => setNameFont(e.target.value as typeof nameFont)}>
+              <option value="default">Default</option>
+              <option value="serif">Serif</option>
+              <option value="mono">Monospace</option>
+              <option value="rounded">Rounded</option>
+              <option value="display">Display</option>
+            </select>
+          </Field>
+          <Field label="Text effect">
+            <select className={inputClass} value={nameEffect} onChange={(e) => setNameEffect(e.target.value as typeof nameEffect)}>
+              <option value="none">None</option>
+              <option value="gradient">Two-color gradient</option>
+              <option value="neon">Neon</option>
+              <option value="glow">Glow</option>
+              <option value="outline">Outline</option>
+            </select>
+          </Field>
+          <label className="flex items-center justify-between rounded bg-vulo-rail px-3 py-2 text-sm text-vulo-text">
+            Main color <input type="color" value={nameColor} onChange={(e) => setNameColor(e.target.value)} className="h-8 w-12 cursor-pointer bg-transparent" />
+          </label>
+          <label className="flex items-center justify-between rounded bg-vulo-rail px-3 py-2 text-sm text-vulo-text">
+            Second color <input type="color" value={nameColorSecondary} onChange={(e) => setNameColorSecondary(e.target.value)} className="h-8 w-12 cursor-pointer bg-transparent" />
+          </label>
+        </div>
+        <div className="mt-3">
+          <Button disabled={accentBusy} onClick={() => void (async () => {
+            setAccentBusy(true); setError(null); setSaved(false);
+            try {
+              await updateProfile({ name_font: nameFont, name_effect: nameEffect, name_color: nameColor, name_color_secondary: nameColorSecondary });
+              setSaved(true);
+            } catch (e) {
+              setError(e instanceof Error ? e.message : 'Could not save name effects.');
+            } finally { setAccentBusy(false); }
+          })()}>Save name effects</Button>
         </div>
       </div>
 
