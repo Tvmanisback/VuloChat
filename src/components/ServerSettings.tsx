@@ -112,6 +112,8 @@ function BotsTab({ data, userId }: { data: ServerData; userId: string }) {
     try {
       const result=await invoke(templateId?{action:'create_from_template',template_id:templateId,name:name||undefined}:{action:'create',name,description});
       setBots(old=>[...old,result.bot]);setToken(result.token);setName('');setDescription('');
+      if(templateId) await invoke({action:'install',bot_id:result.bot.id,server_id:serverId});
+      await load();
     } catch(e){setError(e instanceof Error?e.message:'Could not create bot.');}
     setBusy=false;
   };
@@ -169,7 +171,7 @@ function BotsTab({ data, userId }: { data: ServerData; userId: string }) {
       <h3 className="mb-3 font-semibold text-vulo-bright">Bot marketplace</h3>
       {templates.length===0?<p className="text-sm text-vulo-muted">No premade bots are available yet.</p>:templates.map(t=><div key={t.id} className="flex items-center gap-3 border-b border-vulo-line py-3 last:border-0">
         <div className="min-w-0 flex-1"><p className="font-medium text-vulo-bright">{t.name}</p><p className="text-xs text-vulo-muted">{t.description}</p><p className="mt-1 text-[11px] uppercase text-vulo-muted">{t.category}</p></div>
-        <Button className="py-1.5" disabled={busy} onClick={()=>void create(t.id)}>Create {t.name}</Button>
+        <Button className="py-1.5" disabled={busy} onClick={()=>void create(t.id)}>Add {t.name} to server</Button>
       </div>)}
     </div>
     <div className="mb-6 rounded bg-vulo-side p-4">
