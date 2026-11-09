@@ -88,7 +88,7 @@ export function CreateChannelModal({
   onClose: () => void;
   onCreated: () => void;
 }) {
-  const [type, setType] = useState<'text' | 'voice'>('text');
+  const [type, setType] = useState<'category' | 'text' | 'voice'>('text');
   const [name, setName] = useState('');
   const [parent, setParent] = useState<string | null>(parentId);
   const [busy, setBusy] = useState(false);
@@ -125,26 +125,26 @@ export function CreateChannelModal({
         <ErrorText>{error}</ErrorText>
         <Field label="Channel type">
           <div className="grid grid-cols-2 gap-2">
-            {(['text', 'voice'] as const).map((t) => (
+            {(['text', 'voice', 'category'] as const).map((t) => (
               <button
                 type="button"
                 key={t}
                 onClick={() => setType(t)}
                 className={`flex items-center gap-3 rounded border p-3 text-left ${type === t ? 'border-vulo-accent bg-vulo-accent/10' : 'border-vulo-line bg-vulo-rail hover:bg-vulo-hover'}`}
               >
-                <Icon name={t === 'text' ? 'hash' : 'speaker'} className="h-5 w-5 text-vulo-muted" />
+                <Icon name={t === 'voice' ? 'speaker' : 'hash'} className="h-5 w-5 text-vulo-muted" />
                 <span>
-                  <span className="block font-semibold text-vulo-bright">{t === 'text' ? 'Text' : 'Voice'}</span>
-                  <span className="text-xs text-vulo-muted">{t === 'text' ? 'Send messages and files' : 'Talk with voice and video'}</span>
+                  <span className="block font-semibold text-vulo-bright">{t === 'text' ? 'Text' : t === 'voice' ? 'Voice' : 'Category'}</span>
+                  <span className="text-xs text-vulo-muted">{t === 'text' ? 'Send messages and files' : t === 'voice' ? 'Talk with voice and video' : 'Group channels together'}</span>
                 </span>
               </button>
             ))}
           </div>
         </Field>
         <Field label="Channel name">
-          <input className={inputClass} value={name} onChange={(e) => setName(e.target.value)} maxLength={100} autoFocus required placeholder={type === 'text' ? 'new-channel' : 'Lounge'} />
+          <input className={inputClass} value={name} onChange={(e) => setName(e.target.value)} maxLength={100} autoFocus required placeholder={type === 'text' ? 'new-channel' : type === 'voice' ? 'Lounge' : 'General'} />
         </Field>
-        <Field label="Category">
+        {type !== 'category' && <Field label="Category">
           <select className={inputClass} value={parent ?? ''} onChange={(e) => setParent(e.target.value || null)}>
             <option value="">No category</option>
             {categories.map((c) => (
@@ -156,7 +156,7 @@ export function CreateChannelModal({
       <div className="-mx-5 -mb-4 mt-2 flex justify-between bg-vulo-side px-5 py-3">
         <Button variant="ghost" onClick={onClose}>Cancel</Button>
         <Button type="submit" form="create-channel-form" disabled={busy || !name.trim()}>
-          {busy ? 'Creating…' : 'Create channel'}
+          {busy ? 'Creating…' : type === 'category' ? 'Create category' : 'Create channel'}
         </Button>
       </div>
     </Modal>
