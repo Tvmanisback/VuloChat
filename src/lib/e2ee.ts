@@ -1,11 +1,12 @@
 import { supabase } from './supabase';
 
 /**
- * VuloChat E2EE device-key foundation.
+ * VuloChat browser-device E2EE for message text.
  *
- * This module deliberately does not claim that chats are encrypted yet. It creates
- * a per-browser ECDH identity and provides authenticated encryption envelopes.
- * Message/attachment/call integration and audited protocol review are separate steps.
+ * ChatView and DMChat encrypt message bodies for every active conversation device
+ * before inserting them, then decrypt locally for the matching browser identity.
+ * Attachments and other message metadata are not encrypted by this message-body layer.
+ * This implementation has not had an independent security audit.
  */
 const DB_NAME = 'vulochat-e2ee';
 const STORE = 'device-keys';
