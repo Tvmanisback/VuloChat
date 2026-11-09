@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { supabase } from '../lib/supabase';
 import type { Channel, MemberRow, Server, VoiceState } from '../lib/types';
 import { hasPerm, PERM } from '../lib/permissions';
 import { useVoice } from '../lib/voiceContext';
@@ -63,6 +64,7 @@ export default function ChannelSidebar(props: Props) {
         >
           <Icon name={c.type === 'voice' ? 'speaker' : 'hash'} className="h-5 w-5 shrink-0 opacity-70" />
           <span className="flex-1 truncate">{c.name}</span>
+          {canManage && <select aria-label={`Move ${c.name} to category`} title="Move channel" className="max-w-20 rounded bg-vulo-rail px-1 py-0.5 text-[10px] opacity-0 group-hover:opacity-100" value={c.parent_id ?? ''} onClick={e=>e.stopPropagation()} onChange={async e=>{const parentId=e.target.value||null; await supabase.from('channels').update({parent_id:parentId}).eq('id',c.id);}}><option value="">Uncategorized</option>{categories.filter(cat=>cat.id!==c.id).map(cat=><option key={cat.id} value={cat.id}>{cat.name}</option>)}</select>}
           {inVoice && <span className="h-2 w-2 rounded-full bg-vulo-green" aria-label="Connected" />}
         </button>
 
@@ -129,13 +131,11 @@ export default function ChannelSidebar(props: Props) {
                   </button>
                 </h3>
                 {canManage && (
-                  <button
-                    onClick={() => props.onCreateChannel(cat.id)}
-                    className="text-vulo-muted opacity-0 transition hover:text-vulo-text group-hover:opacity-100"
-                    aria-label={`Create channel in ${cat.name}`}
-                  >
-                    <Icon name="plus" className="h-4 w-4" />
-                  </button>
+                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100">
+                    <button onClick={async()=>{const ordered=[...categories];const i=ordered.findIndex(x=>x.id===cat.id);if(i>0){const prev=ordered[i-1];await supabase.from('channels').update({position:prev.position}).eq('id',cat.id);await supabase.from('channels').update({position:cat.position}).eq('id',prev.id);}}} className="text-vulo-muted hover:text-vulo-text" title="Move category up" aria-label="Move category up">↑</button>
+                    <button onClick={async()=>{const ordered=[...categories];const i=ordered.findIndex(x=>x.id===cat.id);if(i>=0&&i<ordered.length-1){const next=ordered[i+1];await supabase.from('channels').update({position:next.position}).eq('id',cat.id);await supabase.from('channels').update({position:cat.position}).eq('id',next.id);}}} className="text-vulo-muted hover:text-vulo-text" title="Move category down" aria-label="Move category down">↓</button>
+                    <button onClick={() => props.onCreateChannel(cat.id)} className="text-vulo-muted hover:text-vulo-text" aria-label={`Create channel in ${cat.name}`}><Icon name="plus" className="h-4 w-4" /></button>
+                  </div>
                 )}
               </div>
               {!collapsed[cat.id] && <div className="space-y-0.5">{kids.map(renderChannel)}</div>}
