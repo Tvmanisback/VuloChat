@@ -3,7 +3,6 @@ import { useAuth } from '../lib/auth';
 import { supabase } from '../lib/supabase';
 import { bannerBackground } from '../lib/banner';
 import { loadDecorations } from '../lib/decorations';
-import { loadNameplates, nameplateSrc, useNameplates } from '../lib/nameplates';
 import { useProfileBadges } from '../lib/badges';
 import type { Profile, UserStatus } from '../lib/types';
 import { profileNameStyle } from '../lib/nameEffects';
@@ -22,8 +21,6 @@ const STATUS_LABEL: Record<UserStatus, string> = {
 
 export default function ProfileCard({ profile, onClose }: { profile: Profile; onClose: () => void }) {
   const badges = useProfileBadges(profile.id);
-  const nameplates = useNameplates();
-  const nameplate = nameplates.find((item) => item.id === profile.nameplate_id);
   const name = profile.display_name || profile.username;
   const joined = new Date(profile.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
   const { session } = useAuth();
@@ -32,7 +29,6 @@ export default function ProfileCard({ profile, onClose }: { profile: Profile; on
 
   useEffect(() => {
     void loadDecorations();
-    void loadNameplates();
     let active = true;
     const loadActivity = async () => { const {data} = await supabase.from('profile_activity').select('provider,title,subtitle,image_url,external_url,provider_username,provider_profile_url').eq('user_id',profile.id).eq('is_public',true); if(active) setActivity(data || []); };
     void loadActivity();
@@ -73,17 +69,8 @@ export default function ProfileCard({ profile, onClose }: { profile: Profile; on
 
           <div className="relative z-10 overflow-hidden rounded-lg bg-transparent p-3">
             <div className="relative z-10">
-              <div className="relative mb-1 flex min-h-9 items-center">
-                {nameplate && (
-                  <img
-                    src={nameplateSrc(nameplate)}
-                    alt=""
-                    aria-hidden="true"
-                    className="pointer-events-none absolute inset-y-0 left-0 h-full max-w-full object-contain object-left"
-                  />
-                )}
-                <p className="relative z-10 truncate px-1 text-lg font-bold text-vulo-bright" style={profileNameStyle(profile)}>{name}</p>
-              </div>
+              {/* Nameplates are shown in member lists and sidebars, not on the profile card. */}
+              <p className="relative z-10 mb-1 truncate px-1 text-lg font-bold text-vulo-bright" style={profileNameStyle(profile)}>{name}</p>
               <p className="truncate text-sm text-vulo-muted">@{profile.username}</p>
 
               {activity.length > 0 && (
