@@ -4,6 +4,6 @@
 // Redirect URLs in the Supabase dashboard.
 export const SITE_URL = import.meta.env.DEV
   ? `${window.location.origin}/`
-  : 'https://tvmanisback.github.io/VuloChat/';
+  : 'https://vulochat.com/';
 
 export const CONFIRM_URL = `${SITE_URL}confirm.html`;
