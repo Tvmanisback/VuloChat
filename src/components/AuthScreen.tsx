@@ -3,8 +3,8 @@ import { useAuth } from '../lib/auth';
 import { Button, ErrorText, Field, Logo, inputClass } from './ui';
 
 export default function AuthScreen() {
-  const { signIn, signUp } = useAuth();
-  const [mode, setMode] = useState<'login' | 'register'>('login');
+  const { signIn, signUp, resetPassword } = useAuth();
+  const [mode, setMode] = useState<'login' | 'register' | 'reset'>('login');
   const [email, setEmail] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -18,7 +18,10 @@ export default function AuthScreen() {
     setNotice(null);
     setBusy(true);
     try {
-      if (mode === 'login') {
+      if (mode === 'reset') {
+        await resetPassword(email.trim());
+        setNotice('If an account exists for that email, a password reset link has been sent. Check your inbox.');
+      } else if (mode === 'login') {
         await signIn(email.trim(), password);
       } else {
         await signUp(email.trim(), password, username);
@@ -33,15 +36,16 @@ export default function AuthScreen() {
   };
 
   const isLogin = mode === 'login';
+  const isReset = mode === 'reset';
 
   return (
     <div className="flex h-full items-center justify-center bg-vulo-rail p-4">
       <div className="w-full max-w-[480px] rounded-lg bg-vulo-chat p-8 shadow-2xl">
         <div className="mb-6 flex flex-col items-center text-center">
           <Logo className="mb-3 h-14 w-14" />
-          <h1 className="text-2xl font-bold text-vulo-bright">{isLogin ? 'Welcome back' : 'Create your account'}</h1>
+          <h1 className="text-2xl font-bold text-vulo-bright">{isReset ? 'Reset your password' : isLogin ? 'Welcome back' : 'Create your account'}</h1>
           <p className="mt-1 text-sm text-vulo-muted">
-            {isLogin ? 'Log in to pick up your conversations.' : 'Free forever. Takes under a minute.'}
+            {isReset ? 'Enter your account email and we’ll send you a reset link.' : isLogin ? 'Log in to pick up your conversations.' : 'Free forever. Takes under a minute.'}
           </p>
         </div>
 
@@ -49,7 +53,7 @@ export default function AuthScreen() {
           <ErrorText>{error}</ErrorText>
           {notice && <p className="mb-3 rounded bg-vulo-green/10 px-3 py-2 text-sm text-vulo-green">{notice}</p>}
 
-          {!isLogin && (
+          {!isLogin && !isReset && (
             <Field label="Username" hint="Lowercase letters, numbers, underscores and dots. 2–32 characters.">
               <input
                 className={inputClass}
@@ -74,7 +78,7 @@ export default function AuthScreen() {
             />
           </Field>
 
-          <Field label="Password">
+          {!isReset && <Field label="Password">
             <input
               className={inputClass}
               type="password"
@@ -87,22 +91,22 @@ export default function AuthScreen() {
           </Field>
 
           <Button type="submit" disabled={busy} className="mt-2 w-full py-3">
-            {busy ? 'Please wait…' : isLogin ? 'Log in' : 'Continue'}
+            {busy ? 'Please wait…' : isReset ? 'Send reset link' : isLogin ? 'Log in' : 'Continue'}
           </Button>
         </form>
 
-        <p className="mt-4 text-sm text-vulo-muted">
-          {isLogin ? 'Need an account? ' : 'Already have an account? '}
+        {isLogin && <p className="mt-3 text-sm"><button type="button" className="text-[#00a8fc] hover:underline" onClick={() => { setError(null); setNotice(null); setMode('reset'); }}>Forgot password?</button></p>}\n\n        <p className="mt-4 text-sm text-vulo-muted">
+          {isReset ? 'Remembered it? ' : isLogin ? 'Need an account? ' : 'Already have an account? '}
           <button
             type="button"
             className="text-[#00a8fc] hover:underline"
             onClick={() => {
               setError(null);
               setNotice(null);
-              setMode(isLogin ? 'register' : 'login');
+              setMode(isReset ? 'login' : isLogin ? 'register' : 'login');
             }}
           >
-            {isLogin ? 'Register' : 'Log in'}
+            {isReset ? 'Log in' : isLogin ? 'Register' : 'Log in'}
           </button>
         </p>
 
