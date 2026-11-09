@@ -132,6 +132,19 @@ function BotsTab({ data, userId }: { data: ServerData; userId: string }) {
     setEditing(bot);
     setProfile({display_name:profileRow?.display_name||bot.name||'',avatar_url:profileRow?.avatar_url||'',banner_url:profileRow?.banner_url||'',about:profileRow?.about||bot.description||''});
   };
+  const uploadProfileImage=async(kind:'avatar'|'banner',file:File)=>{
+    if(!editing)return;
+    if(!['image/png','image/jpeg','image/gif','image/webp'].includes(file.type)){setError('Use PNG, JPEG, GIF, or WebP images.');return;}
+    if(file.size>10*1024*1024){setError('Bot profile images must be 10 MB or smaller.');return;}
+    const ext=file.name.split('.').pop()?.toLowerCase()||'png';
+    const path=`${userId}/${editing.id}/${kind}-${Date.now()}.${ext}`;
+    setBusy(true);setError(null);
+    const {error:uploadError}=await supabase.storage.from('bot-assets').upload(path,file,{contentType:file.type,upsert:true});
+    if(uploadError){setError(uploadError.message);setBusy(false);return;}
+    const {data:publicFile}=supabase.storage.from('bot-assets').getPublicUrl(path);
+    setProfile(old=>({...old,[kind==='avatar'?'avatar_url':'banner_url']:publicFile.publicUrl}));
+    setBusy(false);
+  };
   const saveProfile=async()=>{
     if(!editing)return;
     setBusy(true);setError(null);
@@ -147,10 +160,10 @@ function BotsTab({ data, userId }: { data: ServerData; userId: string }) {
     {editing&&<div className="mb-6 rounded bg-vulo-side p-4">
       <h3 className="mb-3 font-semibold text-vulo-bright">Edit {editing.name}'s profile</h3>
       <Field label="Display name"><input className={inputClass} value={profile.display_name} onChange={e=>setProfile({...profile,display_name:e.target.value})}/></Field>
-      <Field label="Profile picture URL"><input className={inputClass} value={profile.avatar_url} onChange={e=>setProfile({...profile,avatar_url:e.target.value})} placeholder="https://..."/></Field>
-      <Field label="Banner URL"><input className={inputClass} value={profile.banner_url} onChange={e=>setProfile({...profile,banner_url:e.target.value})} placeholder="https://..."/></Field>
+      <Field label="Profile picture"><input className={inputClass} type="file" accept="image/png,image/jpeg,image/gif,image/webp" onChange={e=>{const file=e.target.files?.[0];if(file)void uploadProfileImage('avatar',file);e.target.value='';}}/></Field>
+      <Field label="Profile banner"><input className={inputClass} type="file" accept="image/png,image/jpeg,image/gif,image/webp" onChange={e=>{const file=e.target.files?.[0];if(file)void uploadProfileImage('banner',file);e.target.value='';}}/></Field>
       <Field label="About"><input className={inputClass} value={profile.about} onChange={e=>setProfile({...profile,about:e.target.value})}/></Field>
-      <div className="flex gap-2"><Button onClick={()=>void saveProfile()} disabled={busy}>Save profile</Button><Button variant="secondary" onClick={()=>setEditing(null)}>Cancel</Button></div>
+      <p className="mb-3 text-xs text-vulo-muted">PNG, JPEG, GIF, or WebP · Maximum 10 MB per image.</p><div className="flex gap-2"><Button onClick={()=>void saveProfile()} disabled={busy}>Save profile</Button><Button variant="secondary" onClick={()=>setEditing(null)}>Cancel</Button></div>
     </div>}
     <div className="mb-6 rounded bg-vulo-side p-4">
       <h3 className="mb-3 font-semibold text-vulo-bright">Bot marketplace</h3>
