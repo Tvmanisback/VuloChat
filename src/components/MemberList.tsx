@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import type { MemberRow, MemberRoleRow, Profile, Role, UserStatus } from '../lib/types';
+import { profileNameStyle } from '../lib/nameEffects';
 import NameplateBackdrop from './Nameplate';
 import { Avatar } from './ui';
 
@@ -77,7 +78,7 @@ export default function MemberList({ members, roles, memberRoles, ownerId, onOpe
                   <span className="relative flex w-full min-w-0 items-center gap-3">
                     <Avatar profile={avatarProfile} size="sm" status={status} ringClass="border-vulo-side" />
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-medium" style={{ color: roleColor.get(m.user_id) ?? '#dbdee1' }}>
+                      <span className="block truncate text-sm font-medium" style={{ color: roleColor.get(m.user_id) ?? '#dbdee1', ...profileNameStyle(p) }}>
                         {name}
                       </span>
                       {p?.custom_status && <span className="block truncate text-xs text-vulo-muted">{p.custom_status}</span>}
