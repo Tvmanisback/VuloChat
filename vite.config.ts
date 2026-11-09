@@ -18,6 +18,7 @@ export default defineConfig({
         main: resolve(__dirname, 'index.html'),
         confirm: resolve(__dirname, 'confirm.html'),
         info: resolve(__dirname, 'info.html'),
+        developers: resolve(__dirname, 'developers.html'),
       },
     },
   },
