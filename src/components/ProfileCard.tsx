@@ -27,13 +27,13 @@ export default function ProfileCard({ profile, onClose }: { profile: Profile; on
   const joined = new Date(profile.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
   const { session } = useAuth();
   const [reporting, setReporting] = useState(false);
-  const [activity, setActivity] = useState<{provider:string;title:string;subtitle:string|null;image_url:string|null;external_url:string|null}[]>([]);
+  const [activity, setActivity] = useState<{provider:string;title:string;subtitle:string|null;image_url:string|null;external_url:string|null;provider_username:string|null;provider_profile_url:string|null}[]>([]);
 
   useEffect(() => {
     void loadDecorations();
     void loadNameplates();
     let active = true;
-    const loadActivity = async () => { const {data} = await supabase.from('profile_activity').select('provider,title,subtitle,image_url,external_url').eq('user_id',profile.id).eq('is_public',true); if(active) setActivity(data || []); };
+    const loadActivity = async () => { const {data} = await supabase.from('profile_activity').select('provider,title,subtitle,image_url,external_url,provider_username,provider_profile_url').eq('user_id',profile.id).eq('is_public',true); if(active) setActivity(data || []); };
     void loadActivity();
     const timer = window.setInterval(() => void loadActivity(), 30000);
     return () => { active = false; window.clearInterval(timer); };
@@ -109,6 +109,7 @@ export default function ProfileCard({ profile, onClose }: { profile: Profile; on
                           <span className="block text-[10px] font-bold uppercase text-vulo-muted">{item.provider === 'spotify' ? 'Spotify' : 'Steam'}</span>
                           <span className="block truncate text-sm font-semibold text-vulo-bright">{item.title}</span>
                           {item.subtitle && <span className="block truncate text-xs text-vulo-muted">{item.subtitle}</span>}
+                          {item.provider === 'spotify' && item.provider_username && <a href={item.provider_profile_url || undefined} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="mt-1 block truncate text-xs text-vulo-accent hover:underline">Spotify · {item.provider_username}</a>}
                         </span>
                       </a>
                     ))}
