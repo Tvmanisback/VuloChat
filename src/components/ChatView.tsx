@@ -356,7 +356,8 @@ export default function ChatView({ channel, userId, perms, members, myDisplayNam
                       type="button"
                       onClick={() => author && onOpenProfile?.(author)}
                       disabled={!author}
-                      className="font-medium text-vulo-bright hover:underline disabled:cursor-default disabled:no-underline"\n                      style={profileNameStyle(author)}
+                      className="font-medium text-vulo-bright hover:underline disabled:cursor-default disabled:no-underline"
+                      style={profileNameStyle(author)}
                     >
                       {name}
                     </button>
