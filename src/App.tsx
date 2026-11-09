@@ -5,6 +5,7 @@ import AppShell from './components/AppShell';
 import { Splash } from './components/ui';
 import { VoiceProvider } from './lib/voiceContext';
 import { supabase } from './lib/supabase';
+import DeveloperPortal from './components/DeveloperPortal';
 
 export default function App() {
   const { session, profile, loading } = useAuth();
@@ -26,6 +27,7 @@ export default function App() {
     };
   }, [session]);
 
+  if (window.location.pathname.startsWith('/developers')) return <DeveloperPortal />;
   if (loading) return <Splash />;
   if (!session) return <AuthScreen />;
   if (!profile) return <Splash label="Setting up your profile…" />;
