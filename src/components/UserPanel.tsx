@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useAuth } from '../lib/auth';
 import { useVoice } from '../lib/voiceContext';
 import type { UserStatus } from '../lib/types';
+import { profileNameStyle } from '../lib/nameEffects';
 import { Icon } from './icons';
 import { Avatar } from './ui';
 
@@ -47,7 +48,7 @@ export default function UserPanel({ onOpenSettings }: { onOpenSettings: () => vo
       )}
 
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-semibold text-vulo-bright">{profile.display_name || profile.username}</p>
+        <p className="truncate text-sm font-semibold text-vulo-bright" style={profileNameStyle(profile)}>{profile.display_name || profile.username}</p>
         <p className="truncate text-xs text-vulo-muted">@{profile.username}</p>
       </div>
 
