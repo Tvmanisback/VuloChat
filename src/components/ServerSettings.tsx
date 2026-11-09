@@ -8,7 +8,7 @@ import type { Role } from '../lib/types';
 import type { ServerData } from '../lib/useServer';
 import { Button, ErrorText, Field, inputClass } from './ui';
 
-type Tab = 'overview' | 'roles' | 'emojis' | 'stickers' | 'members';
+type Tab = 'overview' | 'roles' | 'emojis' | 'stickers' | 'members' | 'bots';
 
 interface Props {
   data: ServerData;
@@ -35,7 +35,7 @@ export default function ServerSettings({ data, userId, onClose, onLeftOrDeleted 
     { id: 'roles', label: 'Roles', show: canRoles },
     { id: 'emojis', label: 'Emojis', show: canManageServer },
     { id: 'stickers', label: 'Stickers', show: canManageServer },
-    { id: 'members', label: 'Members', show: true },
+    { id: 'members', label: 'Members', show: true },\n    { id: 'bots', label: 'Bots', show: canManageServer },
   ];
   const visible = tabs.filter((t) => t.show);
   const current = visible.find((t) => t.id === tab) ? tab : visible[0]?.id ?? 'members';
@@ -63,7 +63,7 @@ export default function ServerSettings({ data, userId, onClose, onLeftOrDeleted 
           {current === 'roles' && <RolesTab data={data} />}
           {current === 'emojis' && <EmojisTab serverId={data.server.id} userId={userId} />}
           {current === 'stickers' && <StickersTab serverId={data.server.id} userId={userId} />}
-          {current === 'members' && <MembersTab data={data} userId={userId} />}
+          {current === 'members' && <MembersTab data={data} userId={userId} />}\n          {current === 'bots' && <BotsTab data={data} userId={userId} />}
         </div>
       </div>
 
@@ -73,6 +73,59 @@ export default function ServerSettings({ data, userId, onClose, onLeftOrDeleted 
       </button>
     </div>
   );
+}
+
+
+function BotsTab({ data, userId }: { data: ServerData; userId: string }) {
+  const [bots, setBots] = useState<{id:string;name:string;description:string;profile_id:string}[]>([]);
+  const [name,setName]=useState('');
+  const [description,setDescription]=useState('');
+  const [token,setToken]=useState('');
+  const [error,setError]=useState<string|null>(null);
+  const [busy,setBusy]=useState(false);
+  const serverId=data.server!.id;
+  const load=async()=>{
+    const {data:rows,error:err}=await supabase.from('bots').select('id,name,description,profile_id').eq('owner_id',userId).order('created_at');
+    if(err) setError(err.message); else setBots((rows||[]) as typeof bots);
+  };
+  useEffect(()=>{void load();},[userId]);
+  const create=async()=>{
+    setBusy(true);setError(null);setToken('');
+    const {data:result,error:err}=await supabase.functions.invoke('vulo-bots',{body:{action:'create',name,description}});
+    setBusy(false);
+    if(err||result?.error){setError(err?.message||result.error);return;}
+    setBots(old=>[...old,result.bot]);setToken(result.token);setName('');setDescription('');
+  };
+  const install=async(botId:string)=>{
+    setBusy(true);setError(null);
+    const {data:result,error:err}=await supabase.functions.invoke('vulo-bots',{body:{action:'install',bot_id:botId,server_id:serverId}});
+    setBusy(false);
+    if(err||result?.error)setError(err?.message||result.error);
+    else setError('Bot installed and added to the server member list.');
+  };
+  return <Section title="Bots">
+    <p className="mb-4 text-sm text-vulo-muted">Bots run on their owner's computer. VuloChat does not host bot processes. Create a bot, then install it into this server.</p>
+    <ErrorText>{error}</ErrorText>
+    {token && <div className="mb-5 rounded border border-vulo-green/40 bg-vulo-green/10 p-4">
+      <p className="mb-2 font-semibold text-vulo-bright">Copy this bot token now</p>
+      <code className="block break-all select-all text-sm">{token}</code>
+      <p className="mt-2 text-xs text-vulo-muted">It is shown once. Store it privately; never publish it.</p>
+    </div>}
+    <div className="mb-6 rounded bg-vulo-side p-4">
+      <h3 className="mb-3 font-semibold text-vulo-bright">Create a bot</h3>
+      <Field label="Bot name"><input className={inputClass} value={name} onChange={e=>setName(e.target.value)} maxLength={80} /></Field>
+      <Field label="Description"><input className={inputClass} value={description} onChange={e=>setDescription(e.target.value)} maxLength={500} /></Field>
+      <Button onClick={()=>void create()} disabled={busy||name.trim().length<2}>{busy?'Creating…':'Create bot & token'}</Button>
+    </div>
+    <h3 className="mb-3 font-semibold text-vulo-bright">Your bots</h3>
+    {bots.length===0?<p className="text-sm text-vulo-muted">You have not created any bots yet.</p>:<ul className="divide-y divide-vulo-line rounded bg-vulo-side">
+      {bots.map(bot=><li key={bot.id} className="flex items-center gap-3 px-4 py-3">
+        <div className="min-w-0 flex-1"><p className="font-medium text-vulo-bright">{bot.name}</p><p className="truncate text-xs text-vulo-muted">{bot.description||'No description'}</p></div>
+        <Button className="py-1.5" onClick={()=>void install(bot.id)} disabled={busy}>Add to server</Button>
+      </li>)}
+    </ul>}
+    <p className="mt-4 text-xs text-vulo-muted">SDKs and API documentation: <a className="text-[#00a8fc] hover:underline" href="https://github.com/Tvmanisback/VuloChat/tree/main/sdk" target="_blank" rel="noreferrer">Vulo.js / Vulo.py</a> · <a className="text-[#00a8fc] hover:underline" href="https://github.com/Tvmanisback/VuloChat/blob/main/docs/BOT_API.md" target="_blank" rel="noreferrer">API docs</a></p>
+  </Section>;
 }
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
