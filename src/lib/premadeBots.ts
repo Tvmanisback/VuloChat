@@ -3,6 +3,7 @@
 // settings fields and link to the script that runs the bot on the owner's computer.
 
 export const PORTAL_URL = 'https://vulochat.com/developers';
+export const DOCS_URL = 'https://vulochat.com/dev-docs';
 export const SCRIPTS_URL = 'https://vulochat.com/examples/';
 
 export interface PremadeField {

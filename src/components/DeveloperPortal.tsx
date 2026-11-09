@@ -1,316 +1,565 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
+import type { Session } from '@supabase/supabase-js';
+import { supabase } from '../lib/supabase';
+import { DOCS_URL, errorMessage } from '../lib/premadeBots';
+import { ErrorText, Field, inputClass } from './ui';
 
-const BASE_URL = 'https://yejtrubajgyphbggtjrd.supabase.co/functions/v1/vulo-bots';
+// The developer portal: sign in, then create bots, get their tokens and edit or delete them.
+// It shares the VuloChat sign-in, because it runs on the same site.
 
-const NAV = [
-  { id: 'start', label: 'Start' },
-  { id: 'sdks', label: 'SDKs' },
-  { id: 'premade', label: 'Premade bots' },
-  { id: 'api', label: 'API' },
-  { id: 'permissions', label: 'Permissions' },
-  { id: 'security', label: 'Security' },
-];
+interface Me {
+  id: string;
+  username: string;
+  developer_mode: boolean;
+}
 
-const JS_QUICK = `import Vulo from './Vulo.js';
+interface BotRow {
+  id: string;
+  name: string;
+  description: string;
+  profile_id: string;
+  template_id: string | null;
+  created_at: string;
+}
 
-const bot = new Vulo(process.env.VULO_TOKEN);
-const channelId = process.env.CHANNEL_ID;
+interface TokenRow {
+  bot_id: string;
+  token_prefix: string;
+  last_used_at: string | null;
+}
 
-await bot.sendMessage(channelId, 'Hello from my bot!');
-const { messages } = await bot.getMessages(channelId);
-console.log(messages.at(-1));`;
+interface NewToken {
+  name: string;
+  token: string;
+}
 
-const PY_QUICK = `from Vulo import Vulo
-import os
+type View = { kind: 'bots' } | { kind: 'create' } | { kind: 'edit'; bot: BotRow };
 
-bot = Vulo(os.environ["VULO_TOKEN"])
-channel_id = os.environ["CHANNEL_ID"]
+const PRIMARY = 'rounded bg-vulo-accent px-4 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50';
+const SECONDARY = 'rounded bg-vulo-rail px-3 py-1.5 text-sm font-semibold text-vulo-bright hover:bg-vulo-hover disabled:opacity-50';
+const DANGER = 'rounded bg-vulo-red/90 px-3 py-1.5 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50';
+const NAV = 'rounded px-3 py-2 text-left text-sm font-semibold text-vulo-muted hover:bg-vulo-hover hover:text-vulo-bright';
+const NAV_ACTIVE = 'rounded bg-vulo-hover px-3 py-2 text-left text-sm font-semibold text-vulo-bright';
 
-bot.send_message(channel_id, "Hello from my bot!")
-print(bot.get_messages(channel_id)["messages"][-1])`;
+// Calls the bot API as the signed-in user, and turns any failure into a readable message.
+async function callBots(body: Record<string, unknown>): Promise<any> {
+  const { data, error } = await supabase.functions.invoke('vulo-bots', { body });
+  if (error) throw new Error(await errorMessage(error));
+  if (data?.error) throw new Error(data.error);
+  return data;
+}
 
-const CURL_EXAMPLE = `curl -X POST ${BASE_URL} \\
-  -H "Content-Type: application/json" \\
-  -H "x-vulo-token: $VULO_TOKEN" \\
-  -d '{"action":"send_message","channel_id":"CHANNEL_ID","content":"Hello!"}'`;
+function describeError(e: unknown, fallback: string) {
+  return e instanceof Error && e.message ? e.message : fallback;
+}
 
 export default function DeveloperPortal() {
+  // undefined while the session is loading, null when signed out.
+  const [session, setSession] = useState<Session | null | undefined>(undefined);
+
+  useEffect(() => {
+    void supabase.auth.getSession().then(({ data }) => setSession(data.session));
+    const { data } = supabase.auth.onAuthStateChange((_event, next) => setSession(next));
+    return () => data.subscription.unsubscribe();
+  }, []);
+
   return (
-    <main className="min-h-screen bg-vulo-chat text-vulo-text">
-      <header className="sticky top-0 z-10 border-b border-vulo-line bg-vulo-rail">
-        <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3 px-4 py-3">
-          <a href="/" className="text-lg font-bold text-vulo-bright">
-            VuloChat <span className="text-vulo-accent">Developers</span>
-          </a>
-          <a href="/" className="rounded bg-vulo-accent px-4 py-2 text-sm font-semibold text-white hover:opacity-90">
-            Open VuloChat
-          </a>
-        </div>
-        <nav aria-label="Portal sections" className="scroll-thin mx-auto flex max-w-5xl gap-1 overflow-x-auto px-4 pb-2">
-          {NAV.map((n) => (
-            <a key={n.id} href={`#${n.id}`} className="shrink-0 rounded px-3 py-1.5 text-sm text-vulo-muted hover:bg-vulo-hover hover:text-vulo-bright">
-              {n.label}
-            </a>
-          ))}
-        </nav>
+    <div className="min-h-screen bg-vulo-chat text-vulo-text">
+      <header className="flex items-center justify-between gap-4 border-b border-vulo-line bg-vulo-rail px-4 py-3">
+        <a href="/developers" className="text-lg font-bold text-vulo-bright">
+          VuloChat <span className="text-vulo-accent">Developers</span>
+        </a>
+        <a href="/" className="text-sm text-vulo-muted hover:text-vulo-bright">
+          Open VuloChat
+        </a>
       </header>
 
-      <div className="mx-auto max-w-5xl space-y-16 px-4 py-12">
-        <section>
-          <p className="mb-2 text-sm font-bold uppercase tracking-widest text-vulo-accent">Build with Vulo</p>
-          <h1 className="max-w-3xl text-4xl font-extrabold text-vulo-bright md:text-5xl">Bots that run on your computer.</h1>
-          <p className="mt-4 max-w-2xl text-lg text-vulo-muted">
-            Connect your own program to a VuloChat server with the Vulo API. VuloChat never hosts or runs your bot code. Your
-            program runs wherever you run it, and it talks to VuloChat over HTTPS.
-          </p>
-          <div className="mt-6 flex flex-wrap gap-3">
-            <a href="../sdk/Vulo.js" download className="rounded bg-vulo-accent px-5 py-3 font-semibold text-white hover:opacity-90">
-              Download Vulo.js
-            </a>
-            <a href="../sdk/Vulo.py" download className="rounded bg-vulo-side px-5 py-3 font-semibold text-vulo-bright hover:bg-vulo-hover">
-              Download Vulo.py
-            </a>
-          </div>
-        </section>
+      {session === undefined ? (
+        <p className="p-8 text-vulo-muted">Loading…</p>
+      ) : session ? (
+        <Dashboard userId={session.user.id} />
+      ) : (
+        <SignIn />
+      )}
+    </div>
+  );
+}
 
-        <section id="start" className="scroll-mt-32">
-          <Heading>Start in four steps</Heading>
-          <ol className="grid gap-4 md:grid-cols-2">
-            <Step n="1" title="Turn on Developer mode">
-              In VuloChat, open <strong>Settings → Developer</strong> and turn on <strong>Enable developer mode</strong>.
-            </Step>
-            <Step n="2" title="Create a bot and copy its token">
-              In the same tab, create a bot. The token is shown once. Copy it and keep it private.
-            </Step>
-            <Step n="3" title="Add the bot to your server">
-              As a server owner or someone with Manage Server, open <strong>Server Settings → Bots</strong>, add the bot, and turn on
-              Read messages and Send messages.
-            </Step>
-            <Step n="4" title="Run your program">
-              Download an SDK below, set <code>VULO_TOKEN</code> and <code>CHANNEL_ID</code>, and run your program.
-            </Step>
-          </ol>
-          <div className="mt-8 grid gap-4 lg:grid-cols-2">
-            <CodeBlock label="my-bot.js (Node.js 18+)" code={JS_QUICK} />
-            <CodeBlock label="my_bot.py (Python 3.10+)" code={PY_QUICK} />
-          </div>
-          <p className="mt-4 text-sm text-vulo-muted">
-            Run it with <code>VULO_TOKEN=vulo_… CHANNEL_ID=… node my-bot.js</code> or{' '}
-            <code>VULO_TOKEN=vulo_… CHANNEL_ID=… python my_bot.py</code>. Keep the process running while the bot should respond.
-          </p>
-        </section>
+function SignIn() {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-        <section id="sdks" className="scroll-mt-32">
-          <Heading>SDKs</Heading>
-          <p className="mb-6 max-w-2xl text-vulo-muted">
-            The SDKs wrap the HTTP API so you can call it with plain functions. Each has no dependencies beyond its language's standard
-            library.
-          </p>
-          <div className="grid gap-4 md:grid-cols-2">
-            <Card title="Vulo.js" meta="Node.js 18+ · ES modules">
-              <p>Methods: <code>sendMessage</code>, <code>getMessages</code>, <code>getMembers</code>, <code>getConfig</code>, <code>updateProfile</code>.</p>
-              <a href="../sdk/Vulo.js" download className="mt-4 inline-block rounded bg-vulo-accent px-4 py-2 text-sm font-semibold text-white hover:opacity-90">
-                Download Vulo.js
-              </a>
-            </Card>
-            <Card title="Vulo.py" meta="Python 3.10+ · no packages needed">
-              <p>Methods: <code>send_message</code>, <code>get_messages</code>, <code>get_members</code>, <code>get_config</code>, <code>update_profile</code>.</p>
-              <a href="../sdk/Vulo.py" download className="mt-4 inline-block rounded bg-vulo-side px-4 py-2 text-sm font-semibold text-vulo-bright hover:bg-vulo-hover">
-                Download Vulo.py
-              </a>
-            </Card>
-          </div>
-        </section>
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    setBusy(true);
+    setError(null);
+    const { error: err } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+    if (err) setError(err.message);
+    setBusy(false);
+  };
 
-        <section id="premade" className="scroll-mt-32">
-          <Heading>Premade bots</Heading>
-          <p className="mb-6 max-w-2xl text-vulo-muted">
-            Server owners can add these from <strong>Server Settings → Bots</strong>. Each one gets its own token. Its settings are set in
-            VuloChat, and the script reads them while it runs, so changes apply without restarting the script.
-          </p>
-          <div className="grid gap-4 md:grid-cols-3">
-            <Card title="Welcomer" meta="Community">
-              <p>Greets new members in a channel. Set the welcome message. <code>{'{username}'}</code> and <code>{'{server}'}</code> are filled in.</p>
-              <ScriptLink file="welcomer.js" />
-            </Card>
-            <Card title="Auto-responder" meta="Utility">
-              <p>Replies when a message contains a word you chose. One rule per line, like <code>hello = Hi there!</code></p>
-              <ScriptLink file="auto-responder.js" />
-            </Card>
-            <Card title="Announcer" meta="Community">
-              <p>Posts a message on a timer. Set the message, the channel and the minutes between posts.</p>
-              <ScriptLink file="announcer.js" />
-            </Card>
-          </div>
-        </section>
-
-        <section id="api" className="scroll-mt-32">
-          <Heading>API reference</Heading>
-          <div className="space-y-4 text-vulo-text">
-            <p>
-              <strong className="text-vulo-bright">Base URL:</strong> <code className="break-all">{BASE_URL}</code>
-            </p>
-            <p>
-              <strong className="text-vulo-bright">Authentication:</strong> send a <code>POST</code> with a JSON body and your bot token in the{' '}
-              <code>x-vulo-token</code> header. Every request needs that header.
-            </p>
-            <p>
-              <strong className="text-vulo-bright">Responses:</strong> JSON. Errors have an <code>error</code> message and an HTTP status:
-              400 for bad input, 401 for a missing or revoked token, 403 when the bot is not allowed to do this in the server, 404 when the
-              channel is not found, and 500 for a server problem.
-            </p>
-          </div>
-
-          <CodeBlock label="Example request" code={CURL_EXAMPLE} className="mt-6" />
-
-          <h3 className="mb-3 mt-10 text-lg font-bold text-vulo-bright">Bot actions</h3>
-          <div className="space-y-6">
-            <Endpoint
-              action="send_message"
-              body={`{ "action": "send_message", "channel_id": "CHANNEL_ID", "content": "Hello!" }`}
-              response={`{ "message": { "id": "…", "channel_id": "…", "author_id": "…", "content": "Hello!", "created_at": "…" } }`}
-              notes="Needs the Send messages permission and the bot must be enabled in the server. content is cut to 4000 characters."
-            />
-            <Endpoint
-              action="get_messages"
-              body={`{ "action": "get_messages", "channel_id": "CHANNEL_ID" }`}
-              response={`{ "messages": [ { "id": "…", "channel_id": "…", "author_id": "…", "content": "…", "created_at": "…" } ] }`}
-              notes="The 50 most recent messages in the channel, oldest first. Needs the Read messages permission."
-            />
-            <Endpoint
-              action="get_members"
-              body={`{ "action": "get_members", "channel_id": "CHANNEL_ID" }`}
-              response={`{ "members": [ { "user_id": "…", "joined_at": "…", "profiles": { "username": "…", "display_name": "…" } } ] }`}
-              notes="Up to 100 server members, newest first. Needs the Read messages permission."
-            />
-            <Endpoint
-              action="get_config"
-              body={`{ "action": "get_config", "channel_id": "CHANNEL_ID" }`}
-              response={`{ "settings": { … }, "permissions": { "read_messages": true, "send_messages": true }, "server_name": "…" }`}
-              notes="The settings the server owner chose for this bot in this server. Use it to read the welcome message, rules or timer. The bot must be enabled."
-            />
-            <Endpoint
-              action="update_profile"
-              body={`{ "action": "update_profile", "display_name": "My Bot", "about": "What it does" }`}
-              response={`{ "ok": true, "profile": { "display_name": "My Bot", "about": "What it does" } }`}
-              notes="Changes the bot's own profile. Accepts display_name, avatar_url, banner_url and about. Works without any server."
-            />
-          </div>
-
-          <h3 className="mb-3 mt-10 text-lg font-bold text-vulo-bright">Account actions (used by VuloChat)</h3>
-          <p className="mb-4 max-w-2xl text-sm text-vulo-muted">
-            VuloChat uses these when you sign in. Bot programs don't call them. Creating a bot and regenerating a token need Developer
-            mode turned on.
-          </p>
-          <ul className="space-y-2 rounded bg-vulo-side p-4 text-sm">
-            <li><code>create</code>: make a bot and its first token.</li>
-            <li><code>create_from_template</code>: make a premade bot and its first token.</li>
-            <li><code>regenerate_token</code>: replace a bot's token. The old token stops working right away.</li>
-            <li><code>install</code>: add a bot to a server. Needs Manage Server.</li>
-            <li><code>edit_profile</code>: change a bot's profile as its owner.</li>
-          </ul>
-        </section>
-
-        <section id="permissions" className="scroll-mt-32">
-          <Heading>Permissions</Heading>
-          <p className="mb-4 max-w-2xl text-vulo-muted">
-            Server owners and members with Manage Server choose what each bot may do, in <strong>Server Settings → Bots</strong>. A bot can
-            only act in servers where it is added and enabled.
-          </p>
-          <ul className="space-y-3">
-            <li className="rounded bg-vulo-side p-4"><code>read_messages</code>: lets the bot call <code>get_messages</code> and <code>get_members</code>.</li>
-            <li className="rounded bg-vulo-side p-4"><code>send_messages</code>: lets the bot call <code>send_message</code>.</li>
-            <li className="rounded bg-vulo-side p-4"><code>manage_messages</code>: reserved for future use. No action uses it yet.</li>
-          </ul>
-        </section>
-
-        <section id="security" className="scroll-mt-32">
-          <Heading>Security</Heading>
-          <ul className="list-disc space-y-3 pl-5 text-vulo-text">
-            <li>Keep your token private. Never put it in browser code, public repositories, or screenshots. Use an environment variable.</li>
-            <li>If a token is exposed, open <strong>Settings → Developer</strong> and choose <strong>New token</strong>. The old token stops working immediately.</li>
-            <li>Bot programs run on your computer. VuloChat never runs them and never stores their code.</li>
-            <li>Poll gently. Checking every 3 to 10 seconds is plenty for these scripts.</li>
-          </ul>
-        </section>
-      </div>
-
-      <footer className="border-t border-vulo-line px-4 py-8 text-center text-xs text-vulo-muted">
-        VuloChat Developer Portal · Keep your bot tokens private ·{' '}
-        <a href="/info.html#terms" className="hover:underline">Terms</a> ·{' '}
-        <a href="/info.html#privacy" className="hover:underline">Privacy</a>
-      </footer>
+  return (
+    <main className="mx-auto max-w-sm px-4 py-16">
+      <h1 className="mb-2 text-2xl font-bold text-vulo-bright">Sign in</h1>
+      <p className="mb-6 text-sm text-vulo-muted">Use your VuloChat account to create and manage bots.</p>
+      <form onSubmit={(e) => void submit(e)} className="rounded-lg bg-vulo-side p-5">
+        <Field label="Email">
+          <input className={inputClass} type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+        </Field>
+        <Field label="Password">
+          <input className={inputClass} type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+        </Field>
+        <ErrorText>{error}</ErrorText>
+        <button type="submit" disabled={busy} className={`${PRIMARY} w-full`}>
+          Sign in
+        </button>
+      </form>
+      <p className="mt-4 text-center text-sm text-vulo-muted">
+        No account yet?{' '}
+        <a href="/" className="text-vulo-accent hover:underline">
+          Create one in VuloChat
+        </a>
+      </p>
     </main>
   );
 }
 
-function Heading({ children }: { children: ReactNode }) {
-  return <h2 className="mb-6 text-2xl font-bold text-vulo-bright md:text-3xl">{children}</h2>;
-}
+function Dashboard({ userId }: { userId: string }) {
+  const [me, setMe] = useState<Me | null>(null);
+  const [bots, setBots] = useState<BotRow[]>([]);
+  const [tokens, setTokens] = useState<TokenRow[]>([]);
+  const [view, setView] = useState<View>({ kind: 'bots' });
+  const [newToken, setNewToken] = useState<NewToken | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [loaded, setLoaded] = useState(false);
 
-function Step({ n, title, children }: { n: string; title: string; children: ReactNode }) {
+  const load = async () => {
+    const [p, b, t] = await Promise.all([
+      supabase.from('profiles').select('id,username,developer_mode').eq('id', userId).maybeSingle(),
+      supabase.from('bots').select('id,name,description,profile_id,template_id,created_at').eq('owner_id', userId).order('created_at'),
+      // Only your own bots' tokens are visible to you (row-level security). Hashes are never returned.
+      supabase.from('bot_tokens').select('bot_id,token_prefix,last_used_at').is('revoked_at', null),
+    ]);
+    const failed = p.error || b.error || t.error;
+    if (failed) setError(failed.message);
+    setMe((p.data as Me | null) ?? null);
+    setBots((b.data as BotRow[] | null) ?? []);
+    setTokens((t.data as TokenRow[] | null) ?? []);
+    setLoaded(true);
+  };
+
+  useEffect(() => {
+    void load();
+  }, [userId]);
+
+  const regenerate = async (bot: BotRow) => {
+    if (!window.confirm(`Create a new token for ${bot.name}? The current token stops working right away.`)) return;
+    setError(null);
+    try {
+      const result = await callBots({ action: 'regenerate_token', bot_id: bot.id });
+      setNewToken({ name: bot.name, token: result.token });
+      await load();
+    } catch (e) {
+      setError(describeError(e, 'Could not create a new token.'));
+    }
+  };
+
+  const remove = async (bot: BotRow) => {
+    if (!window.confirm(`Delete ${bot.name}? It is removed from every server, and its messages are deleted. This cannot be undone.`)) return;
+    setError(null);
+    try {
+      await callBots({ action: 'delete_bot', bot_id: bot.id });
+      setView({ kind: 'bots' });
+      await load();
+    } catch (e) {
+      setError(describeError(e, 'Could not delete the bot.'));
+    }
+  };
+
+  const tokenFor = (botId: string) => tokens.find((t) => t.bot_id === botId);
+  const activeView = view.kind === 'edit' ? 'bots' : view.kind;
+
   return (
-    <li className="rounded-lg bg-vulo-side p-5">
-      <p className="text-sm font-bold text-vulo-accent">{n}</p>
-      <h3 className="mt-2 text-lg font-bold text-vulo-bright">{title}</h3>
-      <p className="mt-2 text-sm leading-6 text-vulo-muted">{children}</p>
-    </li>
+    <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-6 md:flex-row">
+      <nav aria-label="Developer portal" className="flex shrink-0 gap-1 overflow-x-auto md:w-56 md:flex-col">
+        <button type="button" className={activeView === 'bots' ? NAV_ACTIVE : NAV} onClick={() => setView({ kind: 'bots' })}>
+          My bots
+        </button>
+        <button type="button" className={activeView === 'create' ? NAV_ACTIVE : NAV} onClick={() => setView({ kind: 'create' })}>
+          Create bot
+        </button>
+        <a href={DOCS_URL} className={NAV}>
+          Docs
+        </a>
+        <a href="/" className={NAV}>
+          Back to VuloChat
+        </a>
+        <button type="button" className={NAV} onClick={() => void supabase.auth.signOut()}>
+          Sign out
+        </button>
+      </nav>
+
+      <main className="min-w-0 flex-1">
+        <ErrorText>{error}</ErrorText>
+
+        {loaded && me && !me.developer_mode && <DeveloperModeCard userId={userId} onEnabled={load} />}
+
+        {newToken && (
+          <TokenBox name={newToken.name} token={newToken.token} onDone={() => setNewToken(null)} />
+        )}
+
+        {!loaded ? (
+          <p className="text-vulo-muted">Loading your bots…</p>
+        ) : view.kind === 'create' ? (
+          <CreateBot
+            onCreated={(name, token) => {
+              setNewToken({ name, token });
+              setView({ kind: 'bots' });
+              void load();
+            }}
+          />
+        ) : view.kind === 'edit' ? (
+          <EditBot
+            bot={view.bot}
+            userId={userId}
+            onBack={() => setView({ kind: 'bots' })}
+            onSaved={() => void load()}
+            onRegenerate={() => void regenerate(view.bot)}
+            onDelete={() => void remove(view.bot)}
+            token={tokenFor(view.bot.id)}
+          />
+        ) : (
+          <BotList
+            bots={bots}
+            tokenFor={tokenFor}
+            onEdit={(bot) => setView({ kind: 'edit', bot })}
+            onCreate={() => setView({ kind: 'create' })}
+            onRegenerate={(bot) => void regenerate(bot)}
+          />
+        )}
+      </main>
+    </div>
   );
 }
 
-function Card({ title, meta, children }: { title: string; meta: string; children: ReactNode }) {
+function DeveloperModeCard({ userId, onEnabled }: { userId: string; onEnabled: () => Promise<void> }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const enable = async () => {
+    setBusy(true);
+    setError(null);
+    const { error: err } = await supabase.from('profiles').update({ developer_mode: true }).eq('id', userId);
+    if (err) setError(err.message);
+    else await onEnabled();
+    setBusy(false);
+  };
+
   return (
-    <article className="flex flex-col rounded-lg bg-vulo-side p-5 text-sm leading-6 text-vulo-muted">
-      <p className="text-xs font-bold uppercase tracking-wide text-vulo-accent">{meta}</p>
-      <h3 className="mt-1 text-lg font-bold text-vulo-bright">{title}</h3>
-      <div className="mt-2 space-y-2">{children}</div>
-    </article>
+    <section className="mb-6 rounded-lg bg-vulo-side p-5">
+      <p className="font-semibold text-vulo-bright">Turn on developer mode to create bots</p>
+      <p className="mb-4 mt-1 text-sm text-vulo-muted">
+        Developer mode lets you create bots and get their tokens. You can turn it off again in Settings → Developer.
+      </p>
+      <ErrorText>{error}</ErrorText>
+      <button type="button" disabled={busy} onClick={() => void enable()} className={PRIMARY}>
+        Enable developer mode
+      </button>
+    </section>
   );
 }
 
-function ScriptLink({ file }: { file: string }) {
+function BotList({
+  bots,
+  tokenFor,
+  onEdit,
+  onCreate,
+  onRegenerate,
+}: {
+  bots: BotRow[];
+  tokenFor: (botId: string) => TokenRow | undefined;
+  onEdit: (bot: BotRow) => void;
+  onCreate: () => void;
+  onRegenerate: (bot: BotRow) => void;
+}) {
+  if (bots.length === 0) {
+    return (
+      <section className="rounded-lg bg-vulo-side p-8 text-center">
+        <p className="text-lg font-semibold text-vulo-bright">You have no bots yet</p>
+        <p className="mb-5 mt-1 text-sm text-vulo-muted">Create a bot to get a token, then run your program with it.</p>
+        <button type="button" onClick={onCreate} className={PRIMARY}>
+          Create bot
+        </button>
+      </section>
+    );
+  }
+
   return (
-    <a href={`../examples/${file}`} download className="mt-4 inline-block self-start text-sm font-semibold text-vulo-accent hover:underline">
-      Download {file}
-    </a>
+    <section>
+      <h1 className="mb-4 text-2xl font-bold text-vulo-bright">My bots</h1>
+      <ul className="space-y-3">
+        {bots.map((bot) => {
+          const token = tokenFor(bot.id);
+          return (
+            <li key={bot.id} className="flex flex-col gap-3 rounded-lg bg-vulo-side p-4 sm:flex-row sm:items-center">
+              <div className="min-w-0 flex-1">
+                <p className="font-semibold text-vulo-bright">
+                  {bot.name}
+                  {bot.template_id && <span className="ml-2 rounded bg-vulo-rail px-2 py-0.5 text-xs font-normal text-vulo-muted">Premade</span>}
+                </p>
+                <p className="truncate text-sm text-vulo-muted">{bot.description || 'No description'}</p>
+                <p className="mt-1 text-xs text-vulo-muted">
+                  {token
+                    ? `Token ${token.token_prefix}… · ${token.last_used_at ? `last used ${new Date(token.last_used_at).toLocaleString()}` : 'never used'}`
+                    : 'No active token. Use New token to create one.'}
+                </p>
+              </div>
+              <div className="flex shrink-0 gap-2">
+                <button type="button" className={SECONDARY} onClick={() => onEdit(bot)}>
+                  Edit
+                </button>
+                <button type="button" className={SECONDARY} onClick={() => onRegenerate(bot)}>
+                  New token
+                </button>
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
   );
 }
 
-function Endpoint({ action, body, response, notes }: { action: string; body: string; response: string; notes: string }) {
+function CreateBot({ onCreated }: { onCreated: (name: string, token: string) => void }) {
+  const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const create = async (e: FormEvent) => {
+    e.preventDefault();
+    setBusy(true);
+    setError(null);
+    try {
+      const result = await callBots({ action: 'create', name: name.trim(), description: description.trim() });
+      onCreated(result.bot.name, result.token);
+    } catch (err) {
+      setError(describeError(err, 'Could not create the bot.'));
+    }
+    setBusy(false);
+  };
+
   return (
-    <article className="rounded-lg bg-vulo-side p-5">
-      <h4 className="font-mono text-base font-bold text-vulo-bright">{action}</h4>
-      <p className="mt-2 text-sm text-vulo-muted">{notes}</p>
-      <div className="mt-4 grid gap-4 lg:grid-cols-2">
-        <CodeBlock label="Request body" code={body} />
-        <CodeBlock label="Response" code={response} />
+    <section className="rounded-lg bg-vulo-side p-5">
+      <h1 className="mb-1 text-2xl font-bold text-vulo-bright">Create a bot</h1>
+      <p className="mb-5 text-sm text-vulo-muted">You get a token once the bot is created. Add the bot to a server from Server Settings → Bots.</p>
+      <form onSubmit={(e) => void create(e)}>
+        <Field label="Bot name">
+          <input className={inputClass} value={name} onChange={(e) => setName(e.target.value)} maxLength={80} required />
+        </Field>
+        <Field label="Description">
+          <input className={inputClass} value={description} onChange={(e) => setDescription(e.target.value)} maxLength={500} />
+        </Field>
+        <ErrorText>{error}</ErrorText>
+        <button type="submit" disabled={busy || name.trim().length < 2} className={PRIMARY}>
+          Create bot and token
+        </button>
+      </form>
+    </section>
+  );
+}
+
+function EditBot({
+  bot,
+  userId,
+  onBack,
+  onSaved,
+  onRegenerate,
+  onDelete,
+  token,
+}: {
+  bot: BotRow;
+  userId: string;
+  onBack: () => void;
+  onSaved: () => void;
+  onRegenerate: () => void;
+  onDelete: () => void;
+  token: TokenRow | undefined;
+}) {
+  const [form, setForm] = useState({ name: bot.name, about: bot.description || '', avatar_url: '', banner_url: '' });
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const { data, error: err } = await supabase
+        .from('profiles')
+        .select('display_name,about,avatar_url,banner_url')
+        .eq('id', bot.profile_id)
+        .maybeSingle();
+      if (cancelled) return;
+      if (err) setError(err.message);
+      const profile = data as { display_name: string | null; about: string | null; avatar_url: string | null; banner_url: string | null } | null;
+      setForm({
+        name: profile?.display_name || bot.name,
+        about: profile?.about ?? bot.description ?? '',
+        avatar_url: profile?.avatar_url ?? '',
+        banner_url: profile?.banner_url ?? '',
+      });
+      setLoading(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [bot.id]);
+
+  const upload = async (kind: 'avatar' | 'banner', file: File) => {
+    if (!['image/png', 'image/jpeg', 'image/gif', 'image/webp'].includes(file.type)) {
+      setError('Use PNG, JPEG, GIF, or WebP images.');
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      setError('Images must be 10 MB or smaller.');
+      return;
+    }
+    const ext = file.name.split('.').pop()?.toLowerCase() || 'png';
+    const path = `${userId}/${bot.id}/${kind}-${Date.now()}.${ext}`;
+    setBusy(true);
+    setError(null);
+    const { error: uploadErr } = await supabase.storage.from('bot-assets').upload(path, file, { contentType: file.type, upsert: true });
+    if (uploadErr) {
+      setError(uploadErr.message);
+      setBusy(false);
+      return;
+    }
+    const { data: publicFile } = supabase.storage.from('bot-assets').getPublicUrl(path);
+    setForm((f) => ({ ...f, [kind === 'avatar' ? 'avatar_url' : 'banner_url']: publicFile.publicUrl }));
+    setBusy(false);
+  };
+
+  const save = async (e: FormEvent) => {
+    e.preventDefault();
+    setBusy(true);
+    setError(null);
+    setSaved(false);
+    try {
+      await callBots({ action: 'edit_profile', bot_id: bot.id, display_name: form.name.trim(), about: form.about, avatar_url: form.avatar_url, banner_url: form.banner_url });
+      // The bot's name and description in the list follow its profile.
+      const { error: botErr } = await supabase.from('bots').update({ name: form.name.trim() || bot.name, description: form.about }).eq('id', bot.id);
+      if (botErr) throw new Error(botErr.message);
+      setSaved(true);
+      onSaved();
+    } catch (err) {
+      setError(describeError(err, 'Could not save the bot.'));
+    }
+    setBusy(false);
+  };
+
+  return (
+    <section>
+      <button type="button" onClick={onBack} className="mb-4 text-sm text-vulo-muted hover:text-vulo-bright">
+        ← Back to my bots
+      </button>
+      <h1 className="mb-1 text-2xl font-bold text-vulo-bright">Edit {bot.name}</h1>
+      <p className="mb-5 text-sm text-vulo-muted">
+        {token ? `Token ${token.token_prefix}… · ` : 'No active token · '}
+        Bot ID <code className="text-xs">{bot.id}</code>
+      </p>
+
+      {loading ? (
+        <p className="text-vulo-muted">Loading…</p>
+      ) : (
+        <form onSubmit={(e) => void save(e)} className="rounded-lg bg-vulo-side p-5">
+          <Field label="Name">
+            <input className={inputClass} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} maxLength={80} required />
+          </Field>
+          <Field label="About">
+            <textarea className={`${inputClass} min-h-24`} value={form.about} onChange={(e) => setForm({ ...form, about: e.target.value })} maxLength={500} />
+          </Field>
+          <Field label="Profile picture">
+            <input
+              className={inputClass}
+              type="file"
+              accept="image/png,image/jpeg,image/gif,image/webp"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) void upload('avatar', file);
+                e.target.value = '';
+              }}
+            />
+            {form.avatar_url && <img src={form.avatar_url} alt="" className="mt-2 h-16 w-16 rounded-full object-cover" />}
+          </Field>
+          <Field label="Profile banner">
+            <input
+              className={inputClass}
+              type="file"
+              accept="image/png,image/jpeg,image/gif,image/webp"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) void upload('banner', file);
+                e.target.value = '';
+              }}
+            />
+            {form.banner_url && <img src={form.banner_url} alt="" className="mt-2 h-16 w-full rounded object-cover" />}
+          </Field>
+          <p className="mb-3 text-xs text-vulo-muted">PNG, JPEG, GIF, or WebP · Maximum 10 MB per image.</p>
+          <ErrorText>{error}</ErrorText>
+          {saved && <p className="mb-3 text-sm text-vulo-green">Saved.</p>}
+          <button type="submit" disabled={busy} className={PRIMARY}>
+            Save changes
+          </button>
+        </form>
+      )}
+
+      <div className="mt-8 rounded-lg border border-vulo-red/40 p-5">
+        <p className="font-semibold text-vulo-bright">Token and danger zone</p>
+        <p className="mb-4 mt-1 text-sm text-vulo-muted">
+          A new token replaces the current one. The current token stops working right away. Deleting a bot removes it from every server and deletes its messages.
+        </p>
+        <div className="flex flex-wrap gap-2">
+          <button type="button" onClick={onRegenerate} className={SECONDARY}>
+            New token
+          </button>
+          <button type="button" onClick={onDelete} className={DANGER}>
+            Delete bot
+          </button>
+        </div>
       </div>
-    </article>
+    </section>
   );
 }
 
-function CodeBlock({ label, code, className = '' }: { label: string; code: string; className?: string }) {
+function TokenBox({ name, token, onDone }: { name: string; token: string; onDone: () => void }) {
   const [copied, setCopied] = useState(false);
+
   const copy = async () => {
     try {
-      await navigator.clipboard?.writeText(code);
+      await navigator.clipboard.writeText(token);
       setCopied(true);
-      window.setTimeout(() => setCopied(false), 1500);
     } catch {
       setCopied(false);
     }
   };
+
   return (
-    <div className={`overflow-hidden rounded-lg bg-vulo-rail ${className}`}>
-      <div className="flex items-center justify-between border-b border-vulo-line px-4 py-2">
-        <span className="text-xs font-bold uppercase tracking-wide text-vulo-muted">{label}</span>
-        <button type="button" onClick={() => void copy()} className="rounded px-2 py-1 text-xs text-vulo-muted hover:bg-vulo-hover hover:text-vulo-bright">
-          {copied ? 'Copied' : 'Copy'}
+    <section className="mb-6 rounded-lg border border-vulo-green/40 bg-vulo-green/10 p-5">
+      <p className="font-semibold text-vulo-bright">Token for {name}. Copy it now, it is only shown once.</p>
+      <code className="mt-2 block break-all select-all text-sm">{token}</code>
+      <p className="mt-2 text-xs text-vulo-muted">Keep it private. Run your bot with it as VULO_TOKEN. See Docs for the scripts and the API.</p>
+      <div className="mt-3 flex flex-wrap gap-2">
+        <button type="button" onClick={() => void copy()} className={SECONDARY}>
+          {copied ? 'Copied' : 'Copy token'}
+        </button>
+        <button type="button" onClick={onDone} className={SECONDARY}>
+          I've copied it
         </button>
       </div>
-      <pre className="scroll-thin overflow-x-auto p-4 text-sm leading-6 text-vulo-text">
-        <code>{code}</code>
-      </pre>
-    </div>
+    </section>
   );
 }
+

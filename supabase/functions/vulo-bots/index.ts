@@ -171,6 +171,21 @@ Deno.serve(async (req) => {
       return reply({ ok: true, profile_id: bot.profile_id });
     }
 
+    if (action === "delete_bot") {
+      const user = await signedInUser(req);
+      if (!user) return reply({ error: "Sign in required" }, 401);
+      const botId = String(body.bot_id || "");
+      const { data: owned } = await admin.from("bots").select("id,profile_id").eq("id", botId).eq("owner_id", user.id).maybeSingle();
+      if (!owned) return reply({ error: "Bot not found or not owned by you" }, 404);
+      // Remove the bot's uploaded images first.
+      const { data: files } = await admin.storage.from("bot-assets").list(`${user.id}/${botId}`, { limit: 100 });
+      if (files?.length) await admin.storage.from("bot-assets").remove(files.map((f) => `${user.id}/${botId}/${f.name}`));
+      // Deleting the bot's login removes its profile, bot record, tokens, server installs and messages (database cascade).
+      const { error } = await admin.auth.admin.deleteUser(owned.profile_id);
+      if (error) throw error;
+      return reply({ ok: true });
+    }
+
     // Everything below is for local bot programs, which authenticate with their bot token.
     const token = req.headers.get("x-vulo-token") || String(body.token || "");
     if (!token.startsWith("vulo_")) return reply({ error: "Bot token required" }, 401);
