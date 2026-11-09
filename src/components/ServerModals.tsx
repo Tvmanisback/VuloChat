@@ -109,7 +109,7 @@ export function CreateChannelModal({
     const position = ((last?.[0]?.position as number | undefined) ?? 0) + 1;
     const { error: err } = await supabase.from('channels').insert({
       server_id: serverId,
-      parent_id: parent,
+      parent_id: type === 'category' ? null : parent,
       type,
       name: clean,
       position,
