@@ -98,7 +98,7 @@ function BotsTab({ data, userId }: { data: ServerData; userId: string }) {
       supabase.from('bot_templates').select('*').eq('enabled',true),
       supabase.from('server_bots').select('bot_id,enabled,settings,permissions,bots(id,name,description,profile_id)').eq('server_id',serverId)
     ]);
-    if(mine.error||market.error||active.error){setError(mine.error?.message||market.error?.message||active.error?.message);return;}
+    if(mine.error||market.error||active.error){setError(mine.error?.message || market.error?.message || active.error?.message || 'Could not load bot settings.');return;}
     setBots(mine.data||[]);setTemplates(market.data||[]);setInstalled(active.data||[]);
   };
   useEffect(()=>{void load();},[userId,serverId]);
@@ -115,13 +115,13 @@ function BotsTab({ data, userId }: { data: ServerData; userId: string }) {
       if(templateId) await invoke({action:'install',bot_id:result.bot.id,server_id:serverId});
       await load();
     } catch(e){setError(e instanceof Error?e.message:'Could not create bot.');}
-    setBusy=false;
+    setBusy(false);
   };
   const install=async(botId:string)=>{
     setBusy(true);setError(null);
     try { await invoke({action:'install',bot_id:botId,server_id:serverId}); await load(); }
     catch(e){setError(e instanceof Error?e.message:'Could not install bot.');}
-    setBusy=false;
+    setBusy(false);
   };
   const configure=async(botId:string,patch:any)=>{
     const current=installed.find(x=>x.bot_id===botId);
