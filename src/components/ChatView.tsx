@@ -14,6 +14,7 @@ import { hasPerm, PERM } from '../lib/permissions';
 import { getSettings, useSettings } from '../lib/settings';
 import { playCue } from '../lib/sounds';
 import type { Attachment, Channel, Embed, MemberRow, Message, Profile } from '../lib/types';
+import { profileNameStyle } from '../lib/nameEffects';
 import { useBadgesForProfiles } from '../lib/badges';
 import Composer from './Composer';
 import ForwardDialog from './ForwardDialog';
@@ -355,7 +356,7 @@ export default function ChatView({ channel, userId, perms, members, myDisplayNam
                       type="button"
                       onClick={() => author && onOpenProfile?.(author)}
                       disabled={!author}
-                      className="font-medium text-vulo-bright hover:underline disabled:cursor-default disabled:no-underline"
+                      className="font-medium text-vulo-bright hover:underline disabled:cursor-default disabled:no-underline"\n                      style={profileNameStyle(author)}
                     >
                       {name}
                     </button>
