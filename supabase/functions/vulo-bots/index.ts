@@ -41,14 +41,18 @@ Deno.serve(async (req) => {
 
   // Every bot needs its own account, because profiles.id must match an auth user. The password is random
   // and never shown, so nobody can sign in as the bot. Only the bot's token works.
-  const createBotAccount = async () => {
+  // A database trigger on auth.users creates the profile row from the metadata below, so the profile is
+  // not inserted here (that would be a duplicate). Only the fields the trigger does not set are updated.
+  const createBotAccount = async (username: string, displayName: string, about: string) => {
     const { data, error } = await admin.auth.admin.createUser({
       email: `bot-${crypto.randomUUID()}@bots.vulochat.com`,
       password: newToken(),
       email_confirm: true,
-      user_metadata: { is_bot: true },
+      user_metadata: { is_bot: true, username, display_name: displayName },
     });
     if (error || !data.user) throw error ?? new Error("Could not create the bot account");
+    const { error: profileErr } = await admin.from("profiles").update({ about, status: "offline" }).eq("id", data.user.id);
+    if (profileErr) throw profileErr;
     return data.user.id;
   };
 
@@ -105,13 +109,9 @@ Deno.serve(async (req) => {
         .eq("enabled", true)
         .maybeSingle();
       if (!template) return reply({ error: "Template not found" }, 404);
-      const profileId = await createBotAccount();
       const name = String(body.name || template.name).trim().slice(0, 80);
-      const username = "vulo_bot_" + profileId.replaceAll("-", "").slice(0, 16);
-      const { error: profileErr } = await admin.from("profiles").insert({
-        id: profileId, username, display_name: name, avatar_url: null, banner_url: null, about: template.description, status: "offline",
-      });
-      if (profileErr) throw profileErr;
+      const username = "vulo_bot_" + crypto.randomUUID().replaceAll("-", "").slice(0, 16);
+      const profileId = await createBotAccount(username, name, template.description);
       const { data: bot, error: botErr } = await admin
         .from("bots")
         .insert({ owner_id: user.id, profile_id: profileId, name, description: template.description, is_premade: true, template_id: template.id })
@@ -131,12 +131,8 @@ Deno.serve(async (req) => {
       const name = String(body.name || "").trim().slice(0, 80);
       const description = String(body.description || "").trim().slice(0, 500);
       if (name.length < 2) return reply({ error: "Bot name must be at least 2 characters" }, 400);
-      const profileId = await createBotAccount();
-      const username = "vulo_bot_" + profileId.replaceAll("-", "").slice(0, 16);
-      const { error: profileErr } = await admin.from("profiles").insert({
-        id: profileId, username, display_name: name, avatar_url: null, banner_url: null, about: description, status: "offline",
-      });
-      if (profileErr) throw profileErr;
+      const username = "vulo_bot_" + crypto.randomUUID().replaceAll("-", "").slice(0, 16);
+      const profileId = await createBotAccount(username, name, description);
       const { data: bot, error: botErr } = await admin
         .from("bots")
         .insert({ owner_id: user.id, profile_id: profileId, name, description })
