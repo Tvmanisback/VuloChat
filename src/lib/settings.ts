@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from 'react';
-import { CUSTOM_DEFAULT, isDark, resolvePalette, toTriple, type ThemeColors, type ThemeName } from './themes';
+import { CUSTOM_DEFAULT, isDark, resolvePalette, toTriple, type CustomThemeColors, type ThemeName } from './themes';
 
 export interface Keybinds {
   toggleMute: string;
@@ -28,7 +28,7 @@ export interface Settings {
   /** Shows previews under links and images in chat. */
   showLinkPreviews: boolean;
   theme: ThemeName;
-  customTheme: ThemeColors;
+  customTheme: CustomThemeColors;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
