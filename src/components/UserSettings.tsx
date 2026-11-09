@@ -12,7 +12,7 @@ import { Avatar, Button, ErrorText, Field, Modal, inputClass } from './ui';
 import BadgeIcon from './BadgeIcon';
 import NameplateBackdrop from './Nameplate';
 import ProfileDecorationOverlay from './ProfileDecoration';
-import { CUSTOM_DEFAULT, PRESETS, type PresetName, type ThemeColors, type ThemeName } from '../lib/themes';
+import { CUSTOM_DEFAULT, PRESETS, type PresetName, type CustomThemeColors, type ThemeColors, type ThemeName, resolvePalette } from '../lib/themes';
 
 type Tab = 'account' | 'profile' | 'decorations' | 'connections' | 'appearance' | 'accessibility' | 'notifications' | 'voice' | 'keybinds';
 type DecorationSection = 'avatar' | 'nameplate' | 'profile';
@@ -933,6 +933,7 @@ function ThemeCard({
 function AppearanceTab() {
   const s = useSettings();
   const presetIds = Object.keys(PRESETS) as PresetName[];
+  const customPalette = resolvePalette('custom', s.customTheme);
   return (
     <Section title="Appearance">
       <p className="mb-3 text-xs font-bold uppercase tracking-wide text-vulo-muted">Theme</p>
@@ -948,7 +949,7 @@ function AppearanceTab() {
         ))}
         <ThemeCard
           label="Custom"
-          colors={s.customTheme}
+          colors={{ rail: customPalette.rail, side: customPalette.side, chat: customPalette.chat, accent: customPalette.accent, text: customPalette.text }}
           selected={s.theme === 'custom'}
           onSelect={() => updateSettings({ theme: 'custom' })}
         />
@@ -960,7 +961,7 @@ function AppearanceTab() {
             Pick two colors. VuloChat blends them into the sidebar, chat background, and accent shades automatically.
           </p>
           <div className="grid grid-cols-2 gap-3">
-            {([['primary', 'Base color'], ['secondary', 'Blend color']] as [keyof ThemeColors, string][]).map(([key, label]) => (
+            {([['primary', 'Base color'], ['secondary', 'Blend color']] as [keyof CustomThemeColors, string][]).map(([key, label]) => (
               <label key={key} className="flex items-center justify-between gap-3 rounded bg-vulo-rail px-3 py-2 text-sm text-vulo-text">
                 {label}
                 <input
