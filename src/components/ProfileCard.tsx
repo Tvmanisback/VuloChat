@@ -59,7 +59,7 @@ export default function ProfileCard({ profile, onClose }: { profile: Profile; on
         aria-label={`${name}'s profile`}
         className="relative max-h-[90vh] w-full max-w-[340px] overflow-y-auto overscroll-contain rounded-lg bg-vulo-rail shadow-2xl"
       >
-        <ProfileDecorationOverlay decorationId={profile.profile_decoration_id} />
+        <ProfileDecorationOverlay decorationId={profile.profile_decoration_id} allowFullProfile={activity.some((item) => item.provider === 'spotify')} />
         {/* Banner: the uploaded image, or a plain gradient when none is set. GIF banners play as they load. */}
         <div className="relative z-0 h-28 w-full overflow-hidden" style={{ background: bannerBackground(profile.accent_color) }}>
           {profile.banner_url && <img src={profile.banner_url} alt="" className="h-full w-full object-cover" />}
