@@ -840,14 +840,6 @@ function DecorationOption({
   );
 }
 
-const CUSTOM_FIELDS: [keyof ThemeColors, string][] = [
-  ['rail', 'Outer background'],
-  ['side', 'Sidebar'],
-  ['chat', 'Chat'],
-  ['accent', 'Accent'],
-  ['text', 'Text'],
-];
-
 function ThemeCard({
   label,
   colors,
@@ -906,10 +898,10 @@ function AppearanceTab() {
       {s.theme === 'custom' && (
         <div className="mb-6 rounded bg-vulo-side p-5">
           <p className="mb-3 text-sm text-vulo-muted">
-            Pick five colors. The hover, line and muted shades are worked out from them.
+            Pick two colors. VuloChat blends them into the sidebar, chat background, and accent shades automatically.
           </p>
           <div className="grid grid-cols-2 gap-3">
-            {CUSTOM_FIELDS.map(([key, label]) => (
+            {([['primary', 'Base color'], ['secondary', 'Blend color']] as [keyof ThemeColors, string][]).map(([key, label]) => (
               <label key={key} className="flex items-center justify-between gap-3 rounded bg-vulo-rail px-3 py-2 text-sm text-vulo-text">
                 {label}
                 <input
