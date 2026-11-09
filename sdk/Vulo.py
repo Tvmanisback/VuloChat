@@ -20,3 +20,5 @@ class Vulo:
         return self.request("get_messages", channel_id=channel_id)
     def get_members(self, channel_id):
         return self.request("get_members", channel_id=channel_id)
+    def get_config(self, channel_id):
+        return self.request("get_config", channel_id=channel_id)
