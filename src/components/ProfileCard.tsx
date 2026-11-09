@@ -65,6 +65,26 @@ export default function ProfileCard({ profile, onClose }: { profile: Profile; on
           {profile.banner_url && <img src={profile.banner_url} alt="" className="h-full w-full object-cover" />}
         </div>
 
+        <div className="relative z-10 isolate overflow-visible px-4 pb-4">
+          <div className="relative z-20 -mt-12 mb-2 w-fit rounded-full bg-vulo-rail p-1.5">
+            <Avatar profile={profile} size="lg" status={profile.status} ringClass="border-vulo-rail" />
+          </div>
+
+          <div className="relative z-10 overflow-hidden rounded-lg bg-transparent p-3">
+            <div className="relative z-10">
+              <div className="relative mb-1 flex min-h-9 items-center">
+                {nameplate && (
+                  <img
+                    src={nameplateSrc(nameplate)}
+                    alt=""
+                    aria-hidden="true"
+                    className="pointer-events-none absolute inset-y-0 left-0 h-full max-w-full object-contain object-left"
+                  />
+                )}
+                <p className="relative z-10 truncate px-1 text-lg font-bold text-vulo-bright">{name}</p>
+              </div>
+              <p className="truncate text-sm text-vulo-muted">@{profile.username}</p>
+
               {activity.length > 0 && (
                 <div className="mt-3 border-t border-vulo-line pt-3">
                   <p className="mb-2 text-xs font-bold uppercase tracking-wide text-vulo-muted">Listening / Playing</p>
@@ -85,26 +105,6 @@ export default function ProfileCard({ profile, onClose }: { profile: Profile; on
                   </div>
                 </div>
               )}
-
-        <div className="relative z-10 isolate overflow-visible px-4 pb-4">
-          <div className="relative z-20 -mt-12 mb-2 w-fit rounded-full bg-vulo-rail p-1.5">
-            <Avatar profile={profile} size="lg" status={profile.status} ringClass="border-vulo-rail" />
-          </div>
-
-          <div className="relative z-10 overflow-hidden rounded-lg bg-transparent p-3">
-            <div className="relative z-10">
-              <div className="relative mb-1 flex min-h-9 items-center">
-                {nameplate && (
-                  <img
-                    src={nameplateSrc(nameplate)}
-                    alt=""
-                    aria-hidden="true"
-                    className="pointer-events-none absolute inset-y-0 left-0 h-full max-w-full object-contain object-left"
-                  />
-                )}
-                <p className="relative z-10 truncate px-1 text-lg font-bold text-vulo-bright">{name}</p>
-              </div>
-              <p className="truncate text-sm text-vulo-muted">@{profile.username}</p>
               <p className="mt-1 text-xs text-vulo-muted">{STATUS_LABEL[profile.status]}</p>
 
               {profile.custom_status && <p className="mt-2 break-words text-sm text-vulo-text">{profile.custom_status}</p>}
