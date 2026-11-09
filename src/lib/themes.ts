@@ -5,11 +5,8 @@ export type ThemeName = 'violet' | 'midnight' | 'forest' | 'light' | 'custom';
 export type PresetName = Exclude<ThemeName, 'custom'>;
 
 export interface ThemeColors {
-  rail: string;
-  side: string;
-  chat: string;
-  accent: string;
-  text: string;
+  primary: string;
+  secondary: string;
 }
 
 export type Token =
@@ -27,11 +24,8 @@ export type Token =
   | 'accentHover';
 
 export const CUSTOM_DEFAULT: ThemeColors = {
-  rail: '#1e1f22',
-  side: '#2b2d31',
-  chat: '#313338',
-  accent: '#7c5cff',
-  text: '#dbdee1',
+  primary: '#171923',
+  secondary: '#805dff',
 };
 
 export const PRESETS: Record<PresetName, { label: string; colors: ThemeColors; bright: string; muted: string }> = {
@@ -111,14 +105,18 @@ function derive(c: ThemeColors, bright: string, muted: string): Record<Token, st
 /** Full palette for the chosen theme. Invalid colors fall back to the defaults. */
 export function resolvePalette(name: ThemeName, custom: ThemeColors): Record<Token, string> {
   if (name === 'custom') {
+    const primary = safe(custom.primary, CUSTOM_DEFAULT.primary);
+    const secondary = safe(custom.secondary, CUSTOM_DEFAULT.secondary);
+    const dark = isDark(primary);
+    const text = dark ? '#e8eaf4' : '#242536';
     const c: ThemeColors = {
-      rail: safe(custom.rail, CUSTOM_DEFAULT.rail),
-      side: safe(custom.side, CUSTOM_DEFAULT.side),
-      chat: safe(custom.chat, CUSTOM_DEFAULT.chat),
-      accent: safe(custom.accent, CUSTOM_DEFAULT.accent),
-      text: safe(custom.text, CUSTOM_DEFAULT.text),
+      rail: mix(primary, '#000000', dark ? 0.18 : 0.04),
+      side: mix(primary, secondary, 0.12),
+      chat: mix(primary, secondary, 0.22),
+      accent: secondary,
+      text,
     };
-    return derive(c, mix(c.text, isDark(c.chat) ? '#ffffff' : '#000000', 0.35), mix(c.text, c.chat, 0.4));
+    return derive(c, dark ? '#ffffff' : '#11121a', mix(text, c.chat, 0.42));
   }
   const p = PRESETS[name as PresetName] ?? PRESETS.violet;
   return derive(p.colors, p.bright, p.muted);
