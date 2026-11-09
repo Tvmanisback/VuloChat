@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
 import { useBadgesForProfiles } from '../lib/badges';
 import type { Attachment, DirectMessage, Embed, Profile } from '../lib/types';
+import { profileNameStyle } from '../lib/nameEffects';
 import Composer from './Composer';
 import Markdown from './Markdown';
 import { AttachmentList, EmbedList } from './ChatView';
@@ -119,7 +120,7 @@ export default function DMChat({ userId, friend }: Props) {
     <section className="flex min-w-0 flex-1 flex-col bg-vulo-chat">
       <header className="flex h-12 shrink-0 items-center gap-3 border-b border-vulo-rail px-4 shadow-sm">
         <Avatar profile={friend} size="xs" status={friend.status} ringClass="border-vulo-chat" />
-        <h2 className="font-semibold text-vulo-bright">{name}</h2>
+        <h2 className="font-semibold text-vulo-bright" style={profileNameStyle(friend)}>{name}</h2>
         <span className="text-xs text-vulo-muted">@{friend.username}</span>
       </header>
 
