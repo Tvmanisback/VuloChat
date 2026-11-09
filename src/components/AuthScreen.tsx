@@ -88,7 +88,7 @@ export default function AuthScreen() {
               required
               minLength={8}
             />
-          </Field>
+          </Field>}
 
           <Button type="submit" disabled={busy} className="mt-2 w-full py-3">
             {busy ? 'Please wait…' : isReset ? 'Send reset link' : isLogin ? 'Log in' : 'Continue'}
