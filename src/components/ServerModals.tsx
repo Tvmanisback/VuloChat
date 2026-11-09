@@ -151,7 +151,7 @@ export function CreateChannelModal({
               <option key={c.id} value={c.id}>{c.name}</option>
             ))}
           </select>
-        </Field>
+        </Field>}
       </form>
       <div className="-mx-5 -mb-4 mt-2 flex justify-between bg-vulo-side px-5 py-3">
         <Button variant="ghost" onClick={onClose}>Cancel</Button>
