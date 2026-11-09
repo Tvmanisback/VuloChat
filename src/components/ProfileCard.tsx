@@ -6,6 +6,7 @@ import { loadDecorations } from '../lib/decorations';
 import { loadNameplates, nameplateSrc, useNameplates } from '../lib/nameplates';
 import { useProfileBadges } from '../lib/badges';
 import type { Profile, UserStatus } from '../lib/types';
+import { profileNameStyle } from '../lib/nameEffects';
 import BadgeIcon from './BadgeIcon';
 import Markdown from './Markdown';
 import ProfileDecorationOverlay from './ProfileDecoration';
@@ -81,7 +82,7 @@ export default function ProfileCard({ profile, onClose }: { profile: Profile; on
                     className="pointer-events-none absolute inset-y-0 left-0 h-full max-w-full object-contain object-left"
                   />
                 )}
-                <p className="relative z-10 truncate px-1 text-lg font-bold text-vulo-bright">{name}</p>
+                <p className="relative z-10 truncate px-1 text-lg font-bold text-vulo-bright" style={profileNameStyle(profile)}>{name}</p>
               </div>
               <p className="truncate text-sm text-vulo-muted">@{profile.username}</p>
 
