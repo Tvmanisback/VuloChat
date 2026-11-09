@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../lib/auth';
+import { supabase } from '../lib/supabase';
 import { bannerBackground } from '../lib/banner';
 import { loadDecorations } from '../lib/decorations';
 import { loadNameplates, nameplateSrc, useNameplates } from '../lib/nameplates';
@@ -26,11 +27,17 @@ export default function ProfileCard({ profile, onClose }: { profile: Profile; on
   const joined = new Date(profile.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
   const { session } = useAuth();
   const [reporting, setReporting] = useState(false);
+  const [activity, setActivity] = useState<{provider:string;title:string;subtitle:string|null;image_url:string|null;external_url:string|null}[]>([]);
 
   useEffect(() => {
     void loadDecorations();
     void loadNameplates();
-  }, []);
+    let active = true;
+    const loadActivity = async () => { const {data} = await supabase.from('profile_activity').select('provider,title,subtitle,image_url,external_url').eq('user_id',profile.id).eq('is_public',true); if(active) setActivity(data || []); };
+    void loadActivity();
+    const timer = window.setInterval(() => void loadActivity(), 30000);
+    return () => { active = false; window.clearInterval(timer); };
+  }, [profile.id]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -89,6 +96,24 @@ export default function ProfileCard({ profile, onClose }: { profile: Profile; on
                     </li>
                   ))}
                 </ul>
+              )}
+
+              {activity.length > 0 && (
+                <div className="mt-3 border-t border-vulo-line pt-3">
+                  <p className="mb-2 text-xs font-bold uppercase tracking-wide text-vulo-muted">Listening / Playing</p>
+                  <div className="space-y-2">
+                    {activity.map((item) => (
+                      <a key={item.provider} href={item.external_url || undefined} target={item.external_url ? '_blank' : undefined} rel="noopener noreferrer" className="flex items-center gap-3 rounded-lg bg-vulo-side p-2">
+                        {item.image_url && <img src={item.image_url} alt="" className="h-10 w-10 rounded object-cover" />}
+                        <span className="min-w-0">
+                          <span className="block text-[10px] font-bold uppercase text-vulo-muted">{item.provider === 'spotify' ? 'Spotify' : 'Steam'}</span>
+                          <span className="block truncate text-sm font-semibold text-vulo-bright">{item.title}</span>
+                          {item.subtitle && <span className="block truncate text-xs text-vulo-muted">{item.subtitle}</span>}
+                        </span>
+                      </a>
+                    ))}
+                  </div>
+                </div>
               )}
 
               {profile.about && (
