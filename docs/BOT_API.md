@@ -21,3 +21,29 @@ Send POST JSON with your token in the `x-vulo-token` header.
 `{"action":"get_messages","channel_id":"CHANNEL_UUID"}`
 
 The API checks that the bot is installed and that its server-level permissions allow the requested operation. Never put a bot token in browser code, public repositories, or screenshots. The token is not a Supabase service-role key.
+
+
+### List server members
+`{"action":"get_members","channel_id":"CHANNEL_UUID"}`
+
+The bot must be installed in the channel's server and have Read messages permission. This endpoint returns recent member IDs, usernames, display names, and join timestamps.
+
+### Local Welcomer example (Node.js)
+```js
+import Vulo from './Vulo.js';
+const bot = new Vulo(process.env.VULO_TOKEN);
+const channelId = process.env.WELCOME_CHANNEL_ID;
+const greeted = new Set();
+async function poll() {
+  const { members } = await bot.getMembers(channelId);
+  for (const member of members) {
+    if (greeted.has(member.user_id)) continue;
+    greeted.add(member.user_id);
+    const name = member.profiles?.display_name || member.profiles?.username || 'new member';
+    await bot.sendMessage(channelId, `Welcome ${name}!`);
+  }
+}
+await poll();
+setInterval(() => poll().catch(console.error), 10000);
+```
+This example greets members returned in the initial member list too; seed the `greeted` set from the first poll before enabling it in a live server if you only want new arrivals.
