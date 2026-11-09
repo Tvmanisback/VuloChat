@@ -1,54 +1,31 @@
 # Vulo Bot API
 
-Bots execute on their owner's computer. VuloChat does not host or execute bot code.
+The full, up-to-date reference is the developer portal: **https://vulochat.com/developers**
 
-## Create and install
-1. In VuloChat open **Developer → My Bots** and create a bot.
-2. Copy its token once and keep it private. Regenerate it if exposed.
-3. Install the bot from a server's **Settings → Bots** page.
-4. Download `Vulo.js` for Node.js 18+ or `Vulo.py` for Python 3.10+.
-5. Run your bot locally. Keep the computer and process online while it should respond.
+Bots run on their owner's computer. VuloChat does not host or execute bot code.
+
+## Set up a bot
+1. In VuloChat open **Settings → Developer** and turn on **Enable developer mode**.
+2. Create a bot. Its token is shown once. Copy it and keep it private. Use **New token** if it is ever exposed.
+3. As a server owner or someone with Manage Server, open **Server Settings → Bots** and add the bot. Turn on Read messages and Send messages.
+4. Download `Vulo.js` (Node.js 18+) or `Vulo.py` (Python 3.10+) from the portal, and run your program with `VULO_TOKEN` and `CHANNEL_ID` set.
+
+## Premade bots
+Server owners can add **Welcomer**, **Auto-responder** and **Announcer** from **Server Settings → Bots**. Each one needs its script running on a computer. The scripts are in `public/examples/` and are published at `https://vulochat.com/examples/`.
 
 ## API
 Base URL: `https://yejtrubajgyphbggtjrd.supabase.co/functions/v1/vulo-bots`
 
-Send POST JSON with your token in the `x-vulo-token` header.
+Send a POST with a JSON body and your token in the `x-vulo-token` header.
 
-### Send a message
-`{"action":"send_message","channel_id":"CHANNEL_UUID","content":"Hello!"}`
+| Action | Body | Needs |
+|---|---|---|
+| `send_message` | `channel_id`, `content` | Send messages |
+| `get_messages` | `channel_id` | Read messages |
+| `get_members` | `channel_id` | Read messages |
+| `get_config` | `channel_id` | Bot enabled in the server |
+| `update_profile` | `display_name`, `avatar_url`, `banner_url`, `about` (any) | Nothing |
 
-### Read recent messages
-`{"action":"get_messages","channel_id":"CHANNEL_UUID"}`
+The API checks that the bot is installed in the server and that its permissions allow the action. Never put a bot token in browser code, public repositories, or screenshots. A bot token is not a Supabase key.
 
-The API checks that the bot is installed and that its server-level permissions allow the requested operation. Never put a bot token in browser code, public repositories, or screenshots. The token is not a Supabase service-role key.
-
-
-### List server members
-`{"action":"get_members","channel_id":"CHANNEL_UUID"}`
-
-### Read installed bot configuration
-`{"action":"get_config","channel_id":"CHANNEL_UUID"}`
-
-Returns the server-specific settings and permissions configured by the server owner.
-
-The bot must be installed in the channel's server and have Read messages permission. This endpoint returns recent member IDs, usernames, display names, and join timestamps.
-
-### Local Welcomer example (Node.js)
-```js
-import Vulo from './Vulo.js';
-const bot = new Vulo(process.env.VULO_TOKEN);
-const channelId = process.env.WELCOME_CHANNEL_ID;
-const greeted = new Set();
-async function poll() {
-  const { members } = await bot.getMembers(channelId);
-  for (const member of members) {
-    if (greeted.has(member.user_id)) continue;
-    greeted.add(member.user_id);
-    const name = member.profiles?.display_name || member.profiles?.username || 'new member';
-    await bot.sendMessage(channelId, `Welcome ${name}!`);
-  }
-}
-await poll();
-setInterval(() => poll().catch(console.error), 10000);
-```
-This example greets members returned in the initial member list too; seed the `greeted` set from the first poll before enabling it in a live server if you only want new arrivals.
+The app itself also uses `create`, `create_from_template`, `install`, `edit_profile` and `regenerate_token`. Creating bots and regenerating tokens need Developer mode.

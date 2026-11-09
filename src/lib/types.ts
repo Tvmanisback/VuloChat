@@ -21,6 +21,7 @@ export interface Profile {
   custom_status: string | null;
   about: string | null;
   status: UserStatus;
+  developer_mode: boolean;
   created_at: string;
 }
 

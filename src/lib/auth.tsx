@@ -35,6 +35,7 @@ interface AuthState {
         | 'decoration_id'
         | 'nameplate_id'
         | 'profile_decoration_id'
+        | 'developer_mode'
         | 'banner_url'
         | 'animated_banner'
         | 'custom_status'

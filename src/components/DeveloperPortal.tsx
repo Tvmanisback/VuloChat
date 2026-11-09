@@ -1,37 +1,316 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 
-const endpoint='https://yejtrubajgyphbggtjrd.supabase.co/functions/v1/vulo-bots';
-const jsExample=`import Vulo from './Vulo.js';
+const BASE_URL = 'https://yejtrubajgyphbggtjrd.supabase.co/functions/v1/vulo-bots';
+
+const NAV = [
+  { id: 'start', label: 'Start' },
+  { id: 'sdks', label: 'SDKs' },
+  { id: 'premade', label: 'Premade bots' },
+  { id: 'api', label: 'API' },
+  { id: 'permissions', label: 'Permissions' },
+  { id: 'security', label: 'Security' },
+];
+
+const JS_QUICK = `import Vulo from './Vulo.js';
 
 const bot = new Vulo(process.env.VULO_TOKEN);
 const channelId = process.env.CHANNEL_ID;
 
-await bot.sendMessage(channelId, 'Hello from my local Vulo bot!');
+await bot.sendMessage(channelId, 'Hello from my bot!');
 const { messages } = await bot.getMessages(channelId);
-console.log(messages);`;
-const pyExample=`from Vulo import Vulo
+console.log(messages.at(-1));`;
+
+const PY_QUICK = `from Vulo import Vulo
 import os
 
 bot = Vulo(os.environ["VULO_TOKEN"])
 channel_id = os.environ["CHANNEL_ID"]
 
-bot.send_message(channel_id, "Hello from my local Vulo bot!")
-print(bot.get_messages(channel_id))`;
+bot.send_message(channel_id, "Hello from my bot!")
+print(bot.get_messages(channel_id)["messages"][-1])`;
+
+const CURL_EXAMPLE = `curl -X POST ${BASE_URL} \\
+  -H "Content-Type: application/json" \\
+  -H "x-vulo-token: $VULO_TOKEN" \\
+  -d '{"action":"send_message","channel_id":"CHANNEL_ID","content":"Hello!"}'`;
 
 export default function DeveloperPortal() {
- const [tab,setTab]=useState<'overview'|'javascript'|'python'|'api'>('overview');
- const [copied,setCopied]=useState(false);
- const code=tab==='python'?pyExample:jsExample;
- const copy=async()=>{await navigator.clipboard?.writeText(code);setCopied(true);setTimeout(()=>setCopied(false),1500);};
- return <main className="min-h-screen bg-[#111214] text-[#dbdee1]">
-  <header className="border-b border-[#292b2f] bg-[#1e1f22]"><div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-5"><a href="/" className="text-xl font-bold text-white">VuloChat <span className="text-[#00a8fc]">Developers</span></a><a href="/" className="rounded bg-[#5865f2] px-4 py-2 text-sm font-semibold text-white">Open VuloChat</a></div></header>
-  <section className="mx-auto max-w-6xl px-6 py-16"><p className="mb-3 text-sm font-bold uppercase tracking-[.2em] text-[#00a8fc]">Build with Vulo</p><h1 className="max-w-3xl text-4xl font-extrabold text-white md:text-6xl">Create bots that run on your machine.</h1><p className="mt-5 max-w-2xl text-lg text-[#b5bac1]">Use the Vulo API and SDKs to connect your own local programs to VuloChat servers. VuloChat never hosts or executes your bot code.</p>
-  <div className="mt-8 flex flex-wrap gap-3"><a className="rounded bg-[#5865f2] px-5 py-3 font-semibold text-white" href="https://github.com/Tvmanisback/VuloChat/blob/main/sdk/Vulo.js">Get Vulo.js</a><a className="rounded bg-[#35373c] px-5 py-3 font-semibold text-white" href="https://github.com/Tvmanisback/VuloChat/blob/main/sdk/Vulo.py">Get Vulo.py</a><a className="rounded bg-[#35373c] px-5 py-3 font-semibold text-white" href="https://github.com/Tvmanisback/VuloChat/blob/main/docs/BOT_API.md">Full API docs</a></div></section>
-  <section className="mx-auto grid max-w-6xl gap-6 px-6 pb-16 md:grid-cols-3">{[['01','Create a bot','Open Server Settings → Bots or use the bot tools in your server. Create a bot and copy its token.'],['02','Install it','Browse premade bots or add your own bot to a server. Configure its server permissions.'],['03','Run locally','Download an SDK, add your token as an environment variable, and run your program on your computer.']].map(([n,t,d])=><article key={n} className="rounded-xl border border-[#292b2f] bg-[#1e1f22] p-6"><p className="text-sm font-bold text-[#00a8fc]">{n}</p><h2 className="mt-3 text-xl font-bold text-white">{t}</h2><p className="mt-2 text-sm leading-6 text-[#b5bac1]">{d}</p></article>)}</section>
-  <section className="mx-auto max-w-6xl px-6 pb-20"><div className="mb-4 flex flex-wrap gap-2">{(['overview','javascript','python','api'] as const).map(t=><button key={t} onClick={()=>setTab(t)} className={`rounded px-4 py-2 text-sm font-semibold capitalize ${tab===t?'bg-[#5865f2] text-white':'bg-[#292b2f] text-[#b5bac1]'}`}>{t}</button>)}</div>
-   <div className="rounded-xl border border-[#292b2f] bg-[#1e1f22] p-6"><h2 className="text-2xl font-bold text-white">{tab==='overview'?'Bot platform overview':tab==='api'?'HTTP API':tab==='javascript'?'JavaScript SDK':'Python SDK'}</h2>
-   {tab==='overview'?<div className="mt-4 space-y-3 text-sm leading-6 text-[#b5bac1]"><p>Every bot has a profile and a private token. Tokens are stored as hashes and should never be committed to source control.</p><p>Server owners can install bots and grant Read messages and Send messages permissions. Bots can only access servers where they are installed.</p><p>Premade templates are starter configurations, not hosted services. A Welcomer process must be running locally to respond.</p></div>:tab==='api'?<div className="mt-4 space-y-3 text-sm text-[#b5bac1]"><p><strong className="text-white">Base endpoint:</strong> <code>{endpoint}</code></p><p><strong className="text-white">Authentication:</strong> POST JSON with your token in the <code>x-vulo-token</code> header.</p><p><strong className="text-white">Actions:</strong> <code>send_message</code>, <code>get_messages</code>, <code>get_members</code>.</p><p><strong className="text-white">Example:</strong> <code>{'{"action":"send_message","channel_id":"CHANNEL_UUID","content":"Hello!"}'}</code></p></div>:<><div className="mt-4 flex justify-end"><button onClick={()=>void copy()} className="rounded bg-[#35373c] px-3 py-1.5 text-sm">{copied?'Copied':'Copy example'}</button></div><pre className="mt-2 overflow-x-auto rounded-lg bg-[#111214] p-5 text-sm text-[#e3e5e8]"><code>{code}</code></pre></>}</div>
-  </section>
-  <footer className="border-t border-[#292b2f] px-6 py-8 text-center text-xs text-[#949ba4]">VuloChat Developer Portal · Keep your bot tokens private.</footer>
- </main>;
+  return (
+    <main className="min-h-screen bg-vulo-chat text-vulo-text">
+      <header className="sticky top-0 z-10 border-b border-vulo-line bg-vulo-rail">
+        <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3 px-4 py-3">
+          <a href="/" className="text-lg font-bold text-vulo-bright">
+            VuloChat <span className="text-vulo-accent">Developers</span>
+          </a>
+          <a href="/" className="rounded bg-vulo-accent px-4 py-2 text-sm font-semibold text-white hover:opacity-90">
+            Open VuloChat
+          </a>
+        </div>
+        <nav aria-label="Portal sections" className="scroll-thin mx-auto flex max-w-5xl gap-1 overflow-x-auto px-4 pb-2">
+          {NAV.map((n) => (
+            <a key={n.id} href={`#${n.id}`} className="shrink-0 rounded px-3 py-1.5 text-sm text-vulo-muted hover:bg-vulo-hover hover:text-vulo-bright">
+              {n.label}
+            </a>
+          ))}
+        </nav>
+      </header>
+
+      <div className="mx-auto max-w-5xl space-y-16 px-4 py-12">
+        <section>
+          <p className="mb-2 text-sm font-bold uppercase tracking-widest text-vulo-accent">Build with Vulo</p>
+          <h1 className="max-w-3xl text-4xl font-extrabold text-vulo-bright md:text-5xl">Bots that run on your computer.</h1>
+          <p className="mt-4 max-w-2xl text-lg text-vulo-muted">
+            Connect your own program to a VuloChat server with the Vulo API. VuloChat never hosts or runs your bot code. Your
+            program runs wherever you run it, and it talks to VuloChat over HTTPS.
+          </p>
+          <div className="mt-6 flex flex-wrap gap-3">
+            <a href="../sdk/Vulo.js" download className="rounded bg-vulo-accent px-5 py-3 font-semibold text-white hover:opacity-90">
+              Download Vulo.js
+            </a>
+            <a href="../sdk/Vulo.py" download className="rounded bg-vulo-side px-5 py-3 font-semibold text-vulo-bright hover:bg-vulo-hover">
+              Download Vulo.py
+            </a>
+          </div>
+        </section>
+
+        <section id="start" className="scroll-mt-32">
+          <Heading>Start in four steps</Heading>
+          <ol className="grid gap-4 md:grid-cols-2">
+            <Step n="1" title="Turn on Developer mode">
+              In VuloChat, open <strong>Settings → Developer</strong> and turn on <strong>Enable developer mode</strong>.
+            </Step>
+            <Step n="2" title="Create a bot and copy its token">
+              In the same tab, create a bot. The token is shown once. Copy it and keep it private.
+            </Step>
+            <Step n="3" title="Add the bot to your server">
+              As a server owner or someone with Manage Server, open <strong>Server Settings → Bots</strong>, add the bot, and turn on
+              Read messages and Send messages.
+            </Step>
+            <Step n="4" title="Run your program">
+              Download an SDK below, set <code>VULO_TOKEN</code> and <code>CHANNEL_ID</code>, and run your program.
+            </Step>
+          </ol>
+          <div className="mt-8 grid gap-4 lg:grid-cols-2">
+            <CodeBlock label="my-bot.js (Node.js 18+)" code={JS_QUICK} />
+            <CodeBlock label="my_bot.py (Python 3.10+)" code={PY_QUICK} />
+          </div>
+          <p className="mt-4 text-sm text-vulo-muted">
+            Run it with <code>VULO_TOKEN=vulo_… CHANNEL_ID=… node my-bot.js</code> or{' '}
+            <code>VULO_TOKEN=vulo_… CHANNEL_ID=… python my_bot.py</code>. Keep the process running while the bot should respond.
+          </p>
+        </section>
+
+        <section id="sdks" className="scroll-mt-32">
+          <Heading>SDKs</Heading>
+          <p className="mb-6 max-w-2xl text-vulo-muted">
+            The SDKs wrap the HTTP API so you can call it with plain functions. Each has no dependencies beyond its language's standard
+            library.
+          </p>
+          <div className="grid gap-4 md:grid-cols-2">
+            <Card title="Vulo.js" meta="Node.js 18+ · ES modules">
+              <p>Methods: <code>sendMessage</code>, <code>getMessages</code>, <code>getMembers</code>, <code>getConfig</code>, <code>updateProfile</code>.</p>
+              <a href="../sdk/Vulo.js" download className="mt-4 inline-block rounded bg-vulo-accent px-4 py-2 text-sm font-semibold text-white hover:opacity-90">
+                Download Vulo.js
+              </a>
+            </Card>
+            <Card title="Vulo.py" meta="Python 3.10+ · no packages needed">
+              <p>Methods: <code>send_message</code>, <code>get_messages</code>, <code>get_members</code>, <code>get_config</code>, <code>update_profile</code>.</p>
+              <a href="../sdk/Vulo.py" download className="mt-4 inline-block rounded bg-vulo-side px-4 py-2 text-sm font-semibold text-vulo-bright hover:bg-vulo-hover">
+                Download Vulo.py
+              </a>
+            </Card>
+          </div>
+        </section>
+
+        <section id="premade" className="scroll-mt-32">
+          <Heading>Premade bots</Heading>
+          <p className="mb-6 max-w-2xl text-vulo-muted">
+            Server owners can add these from <strong>Server Settings → Bots</strong>. Each one gets its own token. Its settings are set in
+            VuloChat, and the script reads them while it runs, so changes apply without restarting the script.
+          </p>
+          <div className="grid gap-4 md:grid-cols-3">
+            <Card title="Welcomer" meta="Community">
+              <p>Greets new members in a channel. Set the welcome message. <code>{'{username}'}</code> and <code>{'{server}'}</code> are filled in.</p>
+              <ScriptLink file="welcomer.js" />
+            </Card>
+            <Card title="Auto-responder" meta="Utility">
+              <p>Replies when a message contains a word you chose. One rule per line, like <code>hello = Hi there!</code></p>
+              <ScriptLink file="auto-responder.js" />
+            </Card>
+            <Card title="Announcer" meta="Community">
+              <p>Posts a message on a timer. Set the message, the channel and the minutes between posts.</p>
+              <ScriptLink file="announcer.js" />
+            </Card>
+          </div>
+        </section>
+
+        <section id="api" className="scroll-mt-32">
+          <Heading>API reference</Heading>
+          <div className="space-y-4 text-vulo-text">
+            <p>
+              <strong className="text-vulo-bright">Base URL:</strong> <code className="break-all">{BASE_URL}</code>
+            </p>
+            <p>
+              <strong className="text-vulo-bright">Authentication:</strong> send a <code>POST</code> with a JSON body and your bot token in the{' '}
+              <code>x-vulo-token</code> header. Every request needs that header.
+            </p>
+            <p>
+              <strong className="text-vulo-bright">Responses:</strong> JSON. Errors have an <code>error</code> message and an HTTP status:
+              400 for bad input, 401 for a missing or revoked token, 403 when the bot is not allowed to do this in the server, 404 when the
+              channel is not found, and 500 for a server problem.
+            </p>
+          </div>
+
+          <CodeBlock label="Example request" code={CURL_EXAMPLE} className="mt-6" />
+
+          <h3 className="mb-3 mt-10 text-lg font-bold text-vulo-bright">Bot actions</h3>
+          <div className="space-y-6">
+            <Endpoint
+              action="send_message"
+              body={`{ "action": "send_message", "channel_id": "CHANNEL_ID", "content": "Hello!" }`}
+              response={`{ "message": { "id": "…", "channel_id": "…", "author_id": "…", "content": "Hello!", "created_at": "…" } }`}
+              notes="Needs the Send messages permission and the bot must be enabled in the server. content is cut to 4000 characters."
+            />
+            <Endpoint
+              action="get_messages"
+              body={`{ "action": "get_messages", "channel_id": "CHANNEL_ID" }`}
+              response={`{ "messages": [ { "id": "…", "channel_id": "…", "author_id": "…", "content": "…", "created_at": "…" } ] }`}
+              notes="The 50 most recent messages in the channel, oldest first. Needs the Read messages permission."
+            />
+            <Endpoint
+              action="get_members"
+              body={`{ "action": "get_members", "channel_id": "CHANNEL_ID" }`}
+              response={`{ "members": [ { "user_id": "…", "joined_at": "…", "profiles": { "username": "…", "display_name": "…" } } ] }`}
+              notes="Up to 100 server members, newest first. Needs the Read messages permission."
+            />
+            <Endpoint
+              action="get_config"
+              body={`{ "action": "get_config", "channel_id": "CHANNEL_ID" }`}
+              response={`{ "settings": { … }, "permissions": { "read_messages": true, "send_messages": true }, "server_name": "…" }`}
+              notes="The settings the server owner chose for this bot in this server. Use it to read the welcome message, rules or timer. The bot must be enabled."
+            />
+            <Endpoint
+              action="update_profile"
+              body={`{ "action": "update_profile", "display_name": "My Bot", "about": "What it does" }`}
+              response={`{ "ok": true, "profile": { "display_name": "My Bot", "about": "What it does" } }`}
+              notes="Changes the bot's own profile. Accepts display_name, avatar_url, banner_url and about. Works without any server."
+            />
+          </div>
+
+          <h3 className="mb-3 mt-10 text-lg font-bold text-vulo-bright">Account actions (used by VuloChat)</h3>
+          <p className="mb-4 max-w-2xl text-sm text-vulo-muted">
+            VuloChat uses these when you sign in. Bot programs don't call them. Creating a bot and regenerating a token need Developer
+            mode turned on.
+          </p>
+          <ul className="space-y-2 rounded bg-vulo-side p-4 text-sm">
+            <li><code>create</code>: make a bot and its first token.</li>
+            <li><code>create_from_template</code>: make a premade bot and its first token.</li>
+            <li><code>regenerate_token</code>: replace a bot's token. The old token stops working right away.</li>
+            <li><code>install</code>: add a bot to a server. Needs Manage Server.</li>
+            <li><code>edit_profile</code>: change a bot's profile as its owner.</li>
+          </ul>
+        </section>
+
+        <section id="permissions" className="scroll-mt-32">
+          <Heading>Permissions</Heading>
+          <p className="mb-4 max-w-2xl text-vulo-muted">
+            Server owners and members with Manage Server choose what each bot may do, in <strong>Server Settings → Bots</strong>. A bot can
+            only act in servers where it is added and enabled.
+          </p>
+          <ul className="space-y-3">
+            <li className="rounded bg-vulo-side p-4"><code>read_messages</code>: lets the bot call <code>get_messages</code> and <code>get_members</code>.</li>
+            <li className="rounded bg-vulo-side p-4"><code>send_messages</code>: lets the bot call <code>send_message</code>.</li>
+            <li className="rounded bg-vulo-side p-4"><code>manage_messages</code>: reserved for future use. No action uses it yet.</li>
+          </ul>
+        </section>
+
+        <section id="security" className="scroll-mt-32">
+          <Heading>Security</Heading>
+          <ul className="list-disc space-y-3 pl-5 text-vulo-text">
+            <li>Keep your token private. Never put it in browser code, public repositories, or screenshots. Use an environment variable.</li>
+            <li>If a token is exposed, open <strong>Settings → Developer</strong> and choose <strong>New token</strong>. The old token stops working immediately.</li>
+            <li>Bot programs run on your computer. VuloChat never runs them and never stores their code.</li>
+            <li>Poll gently. Checking every 3 to 10 seconds is plenty for these scripts.</li>
+          </ul>
+        </section>
+      </div>
+
+      <footer className="border-t border-vulo-line px-4 py-8 text-center text-xs text-vulo-muted">
+        VuloChat Developer Portal · Keep your bot tokens private ·{' '}
+        <a href="/info.html#terms" className="hover:underline">Terms</a> ·{' '}
+        <a href="/info.html#privacy" className="hover:underline">Privacy</a>
+      </footer>
+    </main>
+  );
+}
+
+function Heading({ children }: { children: ReactNode }) {
+  return <h2 className="mb-6 text-2xl font-bold text-vulo-bright md:text-3xl">{children}</h2>;
+}
+
+function Step({ n, title, children }: { n: string; title: string; children: ReactNode }) {
+  return (
+    <li className="rounded-lg bg-vulo-side p-5">
+      <p className="text-sm font-bold text-vulo-accent">{n}</p>
+      <h3 className="mt-2 text-lg font-bold text-vulo-bright">{title}</h3>
+      <p className="mt-2 text-sm leading-6 text-vulo-muted">{children}</p>
+    </li>
+  );
+}
+
+function Card({ title, meta, children }: { title: string; meta: string; children: ReactNode }) {
+  return (
+    <article className="flex flex-col rounded-lg bg-vulo-side p-5 text-sm leading-6 text-vulo-muted">
+      <p className="text-xs font-bold uppercase tracking-wide text-vulo-accent">{meta}</p>
+      <h3 className="mt-1 text-lg font-bold text-vulo-bright">{title}</h3>
+      <div className="mt-2 space-y-2">{children}</div>
+    </article>
+  );
+}
+
+function ScriptLink({ file }: { file: string }) {
+  return (
+    <a href={`../examples/${file}`} download className="mt-4 inline-block self-start text-sm font-semibold text-vulo-accent hover:underline">
+      Download {file}
+    </a>
+  );
+}
+
+function Endpoint({ action, body, response, notes }: { action: string; body: string; response: string; notes: string }) {
+  return (
+    <article className="rounded-lg bg-vulo-side p-5">
+      <h4 className="font-mono text-base font-bold text-vulo-bright">{action}</h4>
+      <p className="mt-2 text-sm text-vulo-muted">{notes}</p>
+      <div className="mt-4 grid gap-4 lg:grid-cols-2">
+        <CodeBlock label="Request body" code={body} />
+        <CodeBlock label="Response" code={response} />
+      </div>
+    </article>
+  );
+}
+
+function CodeBlock({ label, code, className = '' }: { label: string; code: string; className?: string }) {
+  const [copied, setCopied] = useState(false);
+  const copy = async () => {
+    try {
+      await navigator.clipboard?.writeText(code);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1500);
+    } catch {
+      setCopied(false);
+    }
+  };
+  return (
+    <div className={`overflow-hidden rounded-lg bg-vulo-rail ${className}`}>
+      <div className="flex items-center justify-between border-b border-vulo-line px-4 py-2">
+        <span className="text-xs font-bold uppercase tracking-wide text-vulo-muted">{label}</span>
+        <button type="button" onClick={() => void copy()} className="rounded px-2 py-1 text-xs text-vulo-muted hover:bg-vulo-hover hover:text-vulo-bright">
+          {copied ? 'Copied' : 'Copy'}
+        </button>
+      </div>
+      <pre className="scroll-thin overflow-x-auto p-4 text-sm leading-6 text-vulo-text">
+        <code>{code}</code>
+      </pre>
+    </div>
+  );
 }

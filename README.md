@@ -8,6 +8,8 @@ Free chat for servers, channels, voice, and direct messages. Use it in your brow
 
 **https://vulochat.com/**
 
+Developer portal (bots, SDKs and API reference): **https://vulochat.com/developers**
+
 ## What you can do
 
 - **Create an account** with an email, password, and username. Your profile is set up automatically.

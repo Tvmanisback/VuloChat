@@ -1,5 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { useAuth } from '../lib/auth';
+import DeveloperSettings from './DeveloperSettings';
+import { PORTAL_URL } from '../lib/premadeBots';
 import { supabase } from '../lib/supabase';
 import { loadDecorations, TINT_SUPPORTED, useDecorations } from '../lib/decorations';
 import { loadNameplates, nameplateSrc, useNameplates } from '../lib/nameplates';
@@ -14,10 +16,10 @@ import NameplateBackdrop from './Nameplate';
 import ProfileDecorationOverlay from './ProfileDecoration';
 import { CUSTOM_DEFAULT, PRESETS, type PresetName, type CustomThemeColors, type ThemeColors, type ThemeName, resolvePalette } from '../lib/themes';
 
-type Tab = 'account' | 'profile' | 'decorations' | 'connections' | 'appearance' | 'accessibility' | 'notifications' | 'voice' | 'keybinds';
+type Tab = 'account' | 'profile' | 'decorations' | 'connections' | 'developer' | 'appearance' | 'accessibility' | 'notifications' | 'voice' | 'keybinds';
 type DecorationSection = 'avatar' | 'nameplate' | 'profile';
 
-const GROUPS: { title: string; tabs: { id: Tab; label: string }[] }[] = [
+const GROUPS: { title: string; tabs: { id: Tab | 'portal'; label: string }[] }[] = [
   {
     title: 'User settings',
     tabs: [
@@ -25,6 +27,13 @@ const GROUPS: { title: string; tabs: { id: Tab; label: string }[] }[] = [
       { id: 'profile', label: 'Profile' },
       { id: 'decorations', label: 'Decorations' },
       { id: 'connections', label: 'Connections' },
+    ],
+  },
+  {
+    title: 'Developer',
+    tabs: [
+      { id: 'developer', label: 'Developer' },
+      { id: 'portal', label: 'Portal' },
     ],
   },
   {
@@ -75,11 +84,17 @@ export default function UserSettings({ onClose }: { onClose: () => void }) {
             <div key={g.title} className="mb-5">
               <p className="mb-2 px-2 text-xs font-bold uppercase tracking-wide text-vulo-muted">{g.title}</p>
               <div className="space-y-0.5">
-                {g.tabs.map((t) => (
-                  <button key={t.id} onClick={() => setTab(t.id)} aria-current={tab === t.id ? 'page' : undefined} className={navClass(tab === t.id)}>
-                    {t.label}
-                  </button>
-                ))}
+                {g.tabs.map((t) =>
+                  t.id === 'portal' ? (
+                    <a key={t.id} href={PORTAL_URL} target="_blank" rel="noopener noreferrer" className={navClass(false)}>
+                      {t.label}
+                    </a>
+                  ) : (
+                    <button key={t.id} onClick={() => setTab(t.id as Tab)} aria-current={tab === t.id ? 'page' : undefined} className={navClass(tab === t.id)}>
+                      {t.label}
+                    </button>
+                  ),
+                )}
               </div>
             </div>
           ))}
@@ -112,6 +127,7 @@ export default function UserSettings({ onClose }: { onClose: () => void }) {
           {tab === 'profile' && <ProfileTab />}
           {tab === 'decorations' && <DecorationsTab />}
           {tab === 'connections' && <ConnectionsTab />}
+          {tab === 'developer' && <DeveloperSettings />}
           {tab === 'appearance' && <AppearanceTab />}
           {tab === 'accessibility' && <AccessibilityTab />}
           {tab === 'notifications' && <NotificationsTab />}

@@ -7,6 +7,7 @@ import { useDecorations } from '../lib/decorations';
 import type { Role } from '../lib/types';
 import type { ServerData } from '../lib/useServer';
 import { Button, ErrorText, Field, inputClass } from './ui';
+import { PORTAL_URL, PREMADE_BOTS, SCRIPTS_URL } from '../lib/premadeBots';
 
 type Tab = 'overview' | 'roles' | 'emojis' | 'stickers' | 'members' | 'bots';
 
@@ -78,123 +79,252 @@ export default function ServerSettings({ data, userId, onClose, onLeftOrDeleted 
 }
 
 
+type InstalledRow = {
+  bot_id: string;
+  enabled: boolean;
+  settings: Record<string, any> | null;
+  permissions: Record<string, any> | null;
+  bots: { id: string; name: string; description: string; profile_id: string; template_id: string | null } | null;
+};
+
 function BotsTab({ data, userId }: { data: ServerData; userId: string }) {
-  const [bots,setBots]=useState<any[]>([]);
-  const [templates,setTemplates]=useState<any[]>([]);
-  const [installed,setInstalled]=useState<any[]>([]);
-  const [name,setName]=useState('');
-  const [description,setDescription]=useState('');
-  const [error,setError]=useState<string|null>(null);
-  const [token,setToken]=useState('');
-  const [busy,setBusy]=useState(false);
-  const [editing,setEditing]=useState<any|null>(null);
-  const [profile,setProfile]=useState({display_name:'',avatar_url:'',banner_url:'',about:''});
-  const [welcome,setWelcome]=useState('Welcome {username} to {server}!');
-  const [welcomeChannel,setWelcomeChannel]=useState('');
-  const serverId=data.server!.id;
-  const load=async()=>{
-    const [mine,market,active]=await Promise.all([
-      supabase.from('bots').select('id,name,description,profile_id').eq('owner_id',userId).order('created_at'),
-      supabase.from('bot_templates').select('*').eq('enabled',true),
-      supabase.from('server_bots').select('bot_id,enabled,settings,permissions,bots(id,name,description,profile_id)').eq('server_id',serverId)
+  const serverId = data.server!.id;
+  const [templates, setTemplates] = useState<any[]>([]);
+  const [installed, setInstalled] = useState<InstalledRow[]>([]);
+  const [mine, setMine] = useState<any[]>([]);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [newToken, setNewToken] = useState<{ name: string; token: string } | null>(null);
+
+  const load = async () => {
+    const [t, a, m] = await Promise.all([
+      supabase.from('bot_templates').select('*').eq('enabled', true).order('name'),
+      supabase
+        .from('server_bots')
+        .select('bot_id,enabled,settings,permissions,bots(id,name,description,profile_id,template_id)')
+        .eq('server_id', serverId),
+      supabase.from('bots').select('id,name,description,profile_id,template_id').eq('owner_id', userId).order('created_at'),
     ]);
-    if(mine.error||market.error||active.error){setError(mine.error?.message || market.error?.message || active.error?.message || 'Could not load bot settings.');return;}
-    setBots(mine.data||[]);setTemplates(market.data||[]);setInstalled(active.data||[]);
+    const failed = t.error || a.error || m.error;
+    if (failed) {
+      setError(failed.message);
+      return;
+    }
+    setTemplates(t.data || []);
+    setInstalled((a.data as any) || []);
+    setMine(m.data || []);
   };
-  useEffect(()=>{void load();},[userId,serverId]);
-  const invoke=async(body:any)=>{
-    const {data:result,error:err}=await supabase.functions.invoke('vulo-bots',{body});
-    if(err||result?.error) throw new Error(err?.message||result.error);
+  useEffect(() => {
+    void load();
+  }, [userId, serverId]);
+
+  const invoke = async (body: any) => {
+    const { data: result, error: err } = await supabase.functions.invoke('vulo-bots', { body });
+    if (err || result?.error) throw new Error(err?.message || result.error);
     return result;
   };
-  const create=async(templateId?:string)=>{
-    setBusy(true);setError(null);setToken('');
+
+  // Adds a premade bot: creates it for your account, installs it here, and shows its token once.
+  // The token is what the bot script needs to run on your computer.
+  const addPremade = async (template: any) => {
+    setBusy(true);
+    setError(null);
+    setNewToken(null);
     try {
-      const result=await invoke(templateId?{action:'create_from_template',template_id:templateId,name:name||undefined}:{action:'create',name,description});
-      setBots(old=>[...old,result.bot]);setToken(result.token);setName('');setDescription('');
-      if(templateId) await invoke({action:'install',bot_id:result.bot.id,server_id:serverId});
+      const created = await invoke({ action: 'create_from_template', template_id: template.id });
+      await invoke({ action: 'install', bot_id: created.bot.id, server_id: serverId });
+      setNewToken({ name: template.name, token: created.token });
       await load();
-    } catch(e){setError(e instanceof Error?e.message:'Could not create bot.');}
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not add the bot.');
+    }
     setBusy(false);
   };
-  const install=async(botId:string)=>{
-    setBusy(true);setError(null);
-    try { await invoke({action:'install',bot_id:botId,server_id:serverId}); await load(); }
-    catch(e){setError(e instanceof Error?e.message:'Could not install bot.');}
+
+  const addOwnBot = async (botId: string) => {
+    setBusy(true);
+    setError(null);
+    try {
+      await invoke({ action: 'install', bot_id: botId, server_id: serverId });
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not add the bot.');
+    }
     setBusy(false);
   };
-  const configure=async(botId:string,patch:any)=>{
-    const current=installed.find(x=>x.bot_id===botId);
-    const {error:err}=await supabase.from('server_bots').update(patch).eq('server_id',serverId).eq('bot_id',botId);
-    if(err){setError(err.message);return;}
-    await load();
+
+  const installedIds = new Set(installed.map((row) => row.bot_id));
+  const installedTemplateIds = new Set(installed.map((row) => row.bots?.template_id).filter(Boolean));
+  const otherBots = mine.filter((bot) => !installedIds.has(bot.id));
+
+  return (
+    <Section title="Bots">
+      <p className="mb-4 text-sm text-vulo-muted">
+        Bots run on their owner's computer. VuloChat provides the API and server membership, but never hosts the bot process.
+      </p>
+      <ErrorText>{error}</ErrorText>
+
+      {newToken && (
+        <div className="mb-5 rounded border border-vulo-green/40 bg-vulo-green/10 p-4">
+          <p className="mb-2 font-semibold text-vulo-bright">Copy the token for {newToken.name} now. It is only shown once.</p>
+          <code className="block break-all select-all text-sm">{newToken.token}</code>
+          <p className="mt-2 text-xs text-vulo-muted">Keep it private. Lost tokens can be replaced from Settings → Developer.</p>
+          <Button variant="secondary" className="mt-3 py-1.5" onClick={() => setNewToken(null)}>
+            I've copied it
+          </Button>
+        </div>
+      )}
+
+      <div className="mb-6 rounded bg-vulo-side p-4">
+        <h3 className="mb-3 font-semibold text-vulo-bright">Premade bots</h3>
+        {templates.length === 0 ? (
+          <p className="text-sm text-vulo-muted">No premade bots are available yet.</p>
+        ) : (
+          templates.map((t) => (
+            <div key={t.id} className="flex items-center gap-3 border-b border-vulo-line py-3 last:border-0">
+              <div className="min-w-0 flex-1">
+                <p className="font-medium text-vulo-bright">{t.name}</p>
+                <p className="text-xs text-vulo-muted">{t.description}</p>
+              </div>
+              {installedTemplateIds.has(t.id) ? (
+                <span className="text-xs text-vulo-muted">Added</span>
+              ) : (
+                <Button className="py-1.5" disabled={busy} onClick={() => void addPremade(t)}>
+                  Add to server
+                </Button>
+              )}
+            </div>
+          ))
+        )}
+      </div>
+
+      <h3 className="mb-3 font-semibold text-vulo-bright">In this server</h3>
+      {installed.length === 0 ? (
+        <p className="mb-6 text-sm text-vulo-muted">No bots are in this server yet.</p>
+      ) : (
+        <div className="mb-6 space-y-3">
+          {installed.map((row) =>
+            row.bots ? <InstalledBot key={row.bot_id} row={row} serverId={serverId} onChanged={load} onError={setError} /> : null,
+          )}
+        </div>
+      )}
+
+      {otherBots.length > 0 && (
+        <>
+          <h3 className="mb-3 font-semibold text-vulo-bright">Your other bots</h3>
+          <ul className="mb-6 divide-y divide-vulo-line rounded bg-vulo-side">
+            {otherBots.map((bot) => (
+              <li key={bot.id} className="flex items-center gap-3 px-4 py-3">
+                <div className="min-w-0 flex-1">
+                  <p className="font-medium text-vulo-bright">{bot.name}</p>
+                  <p className="truncate text-xs text-vulo-muted">{bot.description}</p>
+                </div>
+                <Button className="py-1.5" disabled={busy} onClick={() => void addOwnBot(bot.id)}>
+                  Add to server
+                </Button>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+
+      <p className="mt-5 text-xs text-vulo-muted">
+        To make your own bot, turn on Developer mode in Settings → Developer. Bot documentation is at{' '}
+        <a className="text-[#00a8fc] hover:underline" href={PORTAL_URL} target="_blank" rel="noreferrer">
+          the developer portal
+        </a>
+        .
+      </p>
+    </Section>
+  );
+}
+
+function InstalledBot({
+  row,
+  serverId,
+  onChanged,
+  onError,
+}: {
+  row: InstalledRow;
+  serverId: string;
+  onChanged: () => Promise<void>;
+  onError: (message: string) => void;
+}) {
+  const bot = row.bots!;
+  const info = bot.template_id ? PREMADE_BOTS[bot.template_id] : undefined;
+  const [draft, setDraft] = useState<Record<string, any>>(row.settings || {});
+  const [saving, setSaving] = useState(false);
+
+  const update = async (patch: Record<string, any>) => {
+    const { error: err } = await supabase.from('server_bots').update(patch).eq('server_id', serverId).eq('bot_id', bot.id);
+    if (err) {
+      onError(err.message);
+      return;
+    }
+    await onChanged();
   };
-  const openProfile=async(bot:any)=>{
-    const {data:profileRow}=await supabase.from('profiles').select('display_name,avatar_url,banner_url,about').eq('id',bot.profile_id).maybeSingle();
-    setEditing(bot);
-    setProfile({display_name:profileRow?.display_name||bot.name||'',avatar_url:profileRow?.avatar_url||'',banner_url:profileRow?.banner_url||'',about:profileRow?.about||bot.description||''});
+
+  const saveSettings = async () => {
+    setSaving(true);
+    await update({ settings: { ...(row.settings || {}), ...draft } });
+    setSaving(false);
   };
-  const uploadProfileImage=async(kind:'avatar'|'banner',file:File)=>{
-    if(!editing)return;
-    if(!['image/png','image/jpeg','image/gif','image/webp'].includes(file.type)){setError('Use PNG, JPEG, GIF, or WebP images.');return;}
-    if(file.size>10*1024*1024){setError('Bot profile images must be 10 MB or smaller.');return;}
-    const ext=file.name.split('.').pop()?.toLowerCase()||'png';
-    const path=`${userId}/${editing.id}/${kind}-${Date.now()}.${ext}`;
-    setBusy(true);setError(null);
-    const {error:uploadError}=await supabase.storage.from('bot-assets').upload(path,file,{contentType:file.type,upsert:true});
-    if(uploadError){setError(uploadError.message);setBusy(false);return;}
-    const {data:publicFile}=supabase.storage.from('bot-assets').getPublicUrl(path);
-    setProfile(old=>({...old,[kind==='avatar'?'avatar_url':'banner_url']:publicFile.publicUrl}));
-    setBusy(false);
-  };
-  const saveProfile=async()=>{
-    if(!editing)return;
-    setBusy(true);setError(null);
-    try{await invoke({action:'edit_profile',bot_id:editing.id,...profile});setEditing(null);await load();}
-    catch(e){setError(e instanceof Error?e.message:'Could not update bot profile.');}
-    setBusy(false);
-  };
-  const installedIds=new Set(installed.map(x=>x.bot_id));
-  return <Section title="Bots">
-    <p className="mb-4 text-sm text-vulo-muted">Bots run on their owner's computer. VuloChat provides the API and server membership, but never hosts the bot process.</p>
-    <ErrorText>{error}</ErrorText>
-    {token&&<div className="mb-5 rounded border border-vulo-green/40 bg-vulo-green/10 p-4"><p className="mb-2 font-semibold text-vulo-bright">Copy this token now — it is only shown once</p><code className="block break-all select-all text-sm">{token}</code><p className="mt-2 text-xs text-vulo-muted">Keep it private. Regenerate it if it is exposed.</p></div>}
-    {editing&&<div className="mb-6 rounded bg-vulo-side p-4">
-      <h3 className="mb-3 font-semibold text-vulo-bright">Edit {editing.name}'s profile</h3>
-      <Field label="Display name"><input className={inputClass} value={profile.display_name} onChange={e=>setProfile({...profile,display_name:e.target.value})}/></Field>
-      <Field label="Profile picture"><input className={inputClass} type="file" accept="image/png,image/jpeg,image/gif,image/webp" onChange={e=>{const file=e.target.files?.[0];if(file)void uploadProfileImage('avatar',file);e.target.value='';}}/></Field>
-      <Field label="Profile banner"><input className={inputClass} type="file" accept="image/png,image/jpeg,image/gif,image/webp" onChange={e=>{const file=e.target.files?.[0];if(file)void uploadProfileImage('banner',file);e.target.value='';}}/></Field>
-      <Field label="About"><input className={inputClass} value={profile.about} onChange={e=>setProfile({...profile,about:e.target.value})}/></Field>
-      <p className="mb-3 text-xs text-vulo-muted">PNG, JPEG, GIF, or WebP · Maximum 10 MB per image.</p><div className="flex gap-2"><Button onClick={()=>void saveProfile()} disabled={busy}>Save profile</Button><Button variant="secondary" onClick={()=>setEditing(null)}>Cancel</Button></div>
-    </div>}
-    <div className="mb-6 rounded bg-vulo-side p-4">
-      <h3 className="mb-3 font-semibold text-vulo-bright">Bot marketplace</h3>
-      {templates.length===0?<p className="text-sm text-vulo-muted">No premade bots are available yet.</p>:templates.map(t=><div key={t.id} className="flex items-center gap-3 border-b border-vulo-line py-3 last:border-0">
-        <div className="min-w-0 flex-1"><p className="font-medium text-vulo-bright">{t.name}</p><p className="text-xs text-vulo-muted">{t.description}</p><p className="mt-1 text-[11px] uppercase text-vulo-muted">{t.category}</p></div>
-        <Button className="py-1.5" disabled={busy} onClick={()=>void create(t.id)}>Add {t.name} to server</Button>
-      </div>)}
+
+  return (
+    <div className="rounded bg-vulo-side p-4">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <p className="font-medium text-vulo-bright">{bot.name}</p>
+          <p className="text-xs text-vulo-muted">{bot.description}</p>
+        </div>
+        <label className="flex shrink-0 items-center gap-2 text-xs text-vulo-muted">
+          <input type="checkbox" checked={row.enabled} onChange={(e) => void update({ enabled: e.target.checked })} />
+          Enabled
+        </label>
+      </div>
+
+      {info && (
+        <>
+          {info.fields.map((field) => {
+            const value = draft[field.key] ?? '';
+            const set = (v: any) => setDraft({ ...draft, [field.key]: v });
+            return (
+              <Field key={field.key} label={field.label}>
+                {field.kind === 'textarea' ? (
+                  <textarea className={`${inputClass} min-h-24`} value={value} onChange={(e) => set(e.target.value)} />
+                ) : field.kind === 'number' ? (
+                  <input className={inputClass} type="number" min={1} value={value} onChange={(e) => set(Number(e.target.value))} />
+                ) : (
+                  <input className={inputClass} value={value} onChange={(e) => set(e.target.value)} placeholder={field.kind === 'channel' ? 'Channel UUID' : undefined} />
+                )}
+                {field.help && <p className="mt-1 text-xs text-vulo-muted">{field.help}</p>}
+              </Field>
+            );
+          })}
+          <Button variant="secondary" className="py-1.5" disabled={saving} onClick={() => void saveSettings()}>
+            Save settings
+          </Button>
+          <p className="mt-3 text-xs text-vulo-muted">
+            Run it on your computer with your bot token:{' '}
+            <a className="text-[#00a8fc] hover:underline" href={`${SCRIPTS_URL}${info.script}`} target="_blank" rel="noreferrer">
+              download {info.script}
+            </a>
+          </p>
+        </>
+      )}
+
+      <div className="mt-3 flex flex-wrap gap-3 text-xs text-vulo-muted">
+        <label>
+          <input type="checkbox" checked={row.permissions?.read_messages === true} onChange={(e) => void update({ permissions: { ...row.permissions, read_messages: e.target.checked } })} />{' '}
+          Read messages
+        </label>
+        <label>
+          <input type="checkbox" checked={row.permissions?.send_messages === true} onChange={(e) => void update({ permissions: { ...row.permissions, send_messages: e.target.checked } })} />{' '}
+          Send messages
+        </label>
+      </div>
     </div>
-    <div className="mb-6 rounded bg-vulo-side p-4">
-      <h3 className="mb-3 font-semibold text-vulo-bright">Create your own bot</h3>
-      <Field label="Bot name"><input className={inputClass} value={name} onChange={e=>setName(e.target.value)} maxLength={80}/></Field>
-      <Field label="Description"><input className={inputClass} value={description} onChange={e=>setDescription(e.target.value)} maxLength={500}/></Field>
-      <Button onClick={()=>void create()} disabled={busy||name.trim().length<2}>Create bot & token</Button>
-    </div>
-    <h3 className="mb-3 font-semibold text-vulo-bright">Your bots</h3>
-    {bots.length===0?<p className="text-sm text-vulo-muted">No bots created yet.</p>:<ul className="mb-6 divide-y divide-vulo-line rounded bg-vulo-side">{bots.map(bot=><li key={bot.id} className="flex items-center gap-3 px-4 py-3"><div className="min-w-0 flex-1"><p className="font-medium text-vulo-bright">{bot.name}</p><p className="truncate text-xs text-vulo-muted">{bot.description}</p></div><Button variant="secondary" className="py-1.5" onClick={()=>openProfile(bot)}>Profile</Button>{!installedIds.has(bot.id)&&<Button className="py-1.5" disabled={busy} onClick={()=>void install(bot.id)}>Add to server</Button>}</li>)}</ul>}
-    <h3 className="mb-3 font-semibold text-vulo-bright">Installed bots</h3>
-    {installed.length===0?<p className="text-sm text-vulo-muted">No bots installed in this server.</p>:<div className="space-y-3">{installed.map(row=>{
-      const bot=row.bots; if(!bot)return null;
-      const settings=row.settings||{};
-      return <div key={row.bot_id} className="rounded bg-vulo-side p-4">
-        <div className="mb-3 flex items-center justify-between"><div><p className="font-medium text-vulo-bright">{bot.name}</p><p className="text-xs text-vulo-muted">{bot.description}</p></div><label className="flex items-center gap-2 text-xs text-vulo-muted"><input type="checkbox" checked={row.enabled} onChange={e=>void configure(bot.id,{enabled:e.target.checked})}/>Enabled</label></div>
-        {bot.name.toLowerCase().includes('welcomer')&&<><Field label="Welcome message"><input className={inputClass} value={settings.welcome_message??welcome} onChange={e=>setWelcome(e.target.value)}/></Field><Field label="Welcome channel ID"><input className={inputClass} value={settings.channel_id??welcomeChannel} onChange={e=>setWelcomeChannel(e.target.value)} placeholder="Channel UUID"/></Field><Button variant="secondary" className="py-1.5" onClick={()=>void configure(bot.id,{settings:{...settings,welcome_message:welcome,channel_id:welcomeChannel}})}>Save Welcomer settings</Button></>}
-        <div className="mt-3 flex flex-wrap gap-3 text-xs text-vulo-muted"><label><input type="checkbox" checked={row.permissions?.read_messages===true} onChange={e=>void configure(bot.id,{permissions:{...row.permissions,read_messages:e.target.checked}})}/> Read messages</label><label><input type="checkbox" checked={row.permissions?.send_messages===true} onChange={e=>void configure(bot.id,{permissions:{...row.permissions,send_messages:e.target.checked}})}/> Send messages</label></div>
-        <Button variant="secondary" className="mt-3 py-1.5" onClick={()=>openProfile(bot)}>Edit bot profile</Button>
-      </div>;
-    })}</div>}
-    <p className="mt-5 text-xs text-vulo-muted"><a className="mr-3 text-[#00a8fc] hover:underline" href="./developers.html">Open Developer Portal</a> · SDKs: <a className="text-[#00a8fc] hover:underline" href="https://github.com/Tvmanisback/VuloChat/tree/main/sdk" target="_blank" rel="noreferrer">Vulo.js / Vulo.py</a> · <a className="text-[#00a8fc] hover:underline" href="https://github.com/Tvmanisback/VuloChat/blob/main/docs/BOT_API.md" target="_blank" rel="noreferrer">API documentation</a></p>
-  </Section>;
+  );
 }
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
