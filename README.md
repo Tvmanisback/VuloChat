@@ -6,11 +6,12 @@ Free chat for servers, channels, voice, and direct messages. Use it in your brow
 
 ## Open the website
 
-**https://tvmanisback.github.io/VuloChat/**
+**https://vulochat.com/**
 
 ## What you can do
 
 - **Create an account** with an email, password, and username. Your profile is set up automatically.
+- **Recover your account** with the **Forgot password?** link on the login screen. Enter your account email to receive a password reset link, then choose a new password.
 - **Make a server.** You start with an Admin role, a text channel, and a voice channel. Invite friends with a code that lasts 7 days, or join someone else's server with theirs.
 - **Chat in real time.** Use Markdown (bold, italics, code blocks, lists, tables, quotes), emoji, stickers, files up to 1 GB, image and link previews. Edit or delete your own messages, and scroll back through history.
 - **Talk in voice channels.** Mute, deafen, and see who is speaking. Push-to-talk is available in the browser.
