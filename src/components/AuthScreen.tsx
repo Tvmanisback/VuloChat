@@ -95,7 +95,9 @@ export default function AuthScreen() {
           </Button>
         </form>
 
-        {isLogin && <p className="mt-3 text-sm"><button type="button" className="text-[#00a8fc] hover:underline" onClick={() => { setError(null); setNotice(null); setMode('reset'); }}>Forgot password?</button></p>}\n\n        <p className="mt-4 text-sm text-vulo-muted">
+        {isLogin && <p className="mt-3 text-sm"><button type="button" className="text-[#00a8fc] hover:underline" onClick={() => { setError(null); setNotice(null); setMode('reset'); }}>Forgot password?</button></p>}
+
+        <p className="mt-4 text-sm text-vulo-muted">
           {isReset ? 'Remembered it? ' : isLogin ? 'Need an account? ' : 'Already have an account? '}
           <button
             type="button"
