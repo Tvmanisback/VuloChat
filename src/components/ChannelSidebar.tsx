@@ -48,26 +48,37 @@ export default function ChannelSidebar(props: Props) {
     const isActive = activeChannelId === c.id;
     const inVoice = voice.active?.channelId === c.id;
     const occupants = voiceStates.filter((v) => v.channel_id === c.id);
-
+    const siblings = channels.filter((x) => x.type !== 'category' && x.parent_id === c.parent_id).sort((a, b) => a.position - b.position);
+    const index = siblings.findIndex((x) => x.id === c.id);
+    const move = async (direction: -1 | 1) => {
+      const other = siblings[index + direction];
+      if (!other) return;
+      await supabase.from('channels').update({ position: other.position }).eq('id', c.id);
+      await supabase.from('channels').update({ position: c.position }).eq('id', other.id);
+    };
     return (
       <div key={c.id}>
-        <button
-          onClick={() => {
-            if (c.type === 'voice') {
-              void voice.join(server.id, c.id, c.name);
-            }
-            props.onSelectChannel(c);
-          }}
-          className={`group flex w-full items-center gap-1.5 rounded px-2 py-1.5 text-left text-[15px] transition ${
-            isActive ? 'bg-vulo-active text-vulo-bright' : 'text-vulo-muted hover:bg-vulo-hover hover:text-vulo-text'
-          }`}
-        >
-          <Icon name={c.type === 'voice' ? 'speaker' : 'hash'} className="h-5 w-5 shrink-0 opacity-70" />
-          <span className="flex-1 truncate">{c.name}</span>
-          {inVoice && <span className="h-2 w-2 rounded-full bg-vulo-green" aria-label="Connected" />}
-        </button>
-        {canManage && <select aria-label={`Move ${c.name} to category`} title="Move channel" className="ml-2 max-w-20 rounded bg-vulo-rail px-1 py-0.5 text-[10px] text-vulo-muted opacity-0 hover:opacity-100 focus:opacity-100" value={c.parent_id ?? ''} onChange={async e=>{const parentId=e.target.value||null; await supabase.from('channels').update({parent_id:parentId}).eq('id',c.id);}}><option value="">Uncategorized</option>{categories.filter(cat=>cat.id!==c.id).map(cat=><option key={cat.id} value={cat.id}>{cat.name}</option>)}</select>}
-
+        <div className="group flex items-center gap-1">
+          <button
+            onClick={() => {
+              if (c.type === 'voice') void voice.join(server.id, c.id, c.name);
+              props.onSelectChannel(c);
+            }}
+            className={`flex min-w-0 flex-1 items-center gap-1.5 rounded px-2 py-1.5 text-left text-[15px] transition ${isActive ? 'bg-vulo-active text-vulo-bright' : 'text-vulo-muted hover:bg-vulo-hover hover:text-vulo-text'}`}
+          >
+            <Icon name={c.type === 'voice' ? 'speaker' : 'hash'} className="h-5 w-5 shrink-0 opacity-70" />
+            <span className="flex-1 truncate">{c.name}</span>
+            {inVoice && <span className="h-2 w-2 rounded-full bg-vulo-green" aria-label="Connected" />}
+          </button>
+          {canManage && <div className="flex shrink-0 items-center gap-0.5">
+            <button title="Move channel up" aria-label="Move channel up" disabled={index<=0} onClick={()=>void move(-1)} className="rounded px-1 text-xs text-vulo-muted hover:bg-vulo-hover disabled:opacity-30">↑</button>
+            <button title="Move channel down" aria-label="Move channel down" disabled={index<0||index>=siblings.length-1} onClick={()=>void move(1)} className="rounded px-1 text-xs text-vulo-muted hover:bg-vulo-hover disabled:opacity-30">↓</button>
+            <select aria-label={`Move ${c.name} to category`} title="Move channel to category" className="max-w-20 rounded bg-vulo-rail px-1 py-0.5 text-[10px] text-vulo-muted" value={c.parent_id ?? ''} onChange={async e=>{await supabase.from('channels').update({parent_id:e.target.value||null}).eq('id',c.id);}}>
+              <option value="">No category</option>
+              {categories.filter(cat=>cat.id!==c.id).map(cat=><option key={cat.id} value={cat.id}>{cat.name}</option>)}
+            </select>
+          </div>}
+        </div>
         {c.type === 'voice' && occupants.length > 0 && (
           <ul className="ml-6 mt-0.5 space-y-0.5 pb-1">
             {occupants.map((v) => {
