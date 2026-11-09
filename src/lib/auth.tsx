@@ -25,6 +25,10 @@ interface AuthState {
       Pick<
         Profile,
         | 'display_name'
+        | 'name_font'
+        | 'name_effect'
+        | 'name_color'
+        | 'name_color_secondary'
         | 'about'
         | 'avatar_url'
         | 'animated_avatar'
