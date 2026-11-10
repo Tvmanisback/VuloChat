@@ -108,8 +108,8 @@ export default function DevDocs() {
         <section id="sdks" className="scroll-mt-32">
           <Heading>SDKs</Heading>
           <p className="mb-6 max-w-2xl text-vulo-muted">
-            The SDKs wrap the HTTP API so you can call it with plain functions. Each has no dependencies beyond its language's standard
-            library.
+            The SDKs wrap the HTTP API so you can call it with plain functions. Vulo.js has no dependencies. Vulo.py uses only the standard
+            library, plus the cryptography package when a server is end-to-end encrypted.
           </p>
           <div className="grid gap-4 md:grid-cols-2">
             <Card title="Vulo.js" meta="Node.js 18+ · ES modules">
@@ -118,7 +118,7 @@ export default function DevDocs() {
                 Download Vulo.js
               </a>
             </Card>
-            <Card title="Vulo.py" meta="Python 3.10+ · no packages needed">
+            <Card title="Vulo.py" meta="Python 3.10+ · cryptography for encrypted servers">
               <p>Methods: <code>send_message</code>, <code>get_messages</code>, <code>get_members</code>, <code>get_config</code>, <code>update_profile</code>.</p>
               <a href="../sdk/Vulo.py" download className="mt-4 inline-block rounded bg-vulo-side px-4 py-2 text-sm font-semibold text-vulo-bright hover:bg-vulo-hover">
                 Download Vulo.py
@@ -197,6 +197,24 @@ export default function DevDocs() {
               response={`{ "ok": true, "profile": { "display_name": "My Bot", "about": "What it does" } }`}
               notes="Changes the bot's own profile. Accepts display_name, avatar_url, banner_url and about. Works without any server."
             />
+            <Endpoint
+              action="register_device"
+              body={`{ "action": "register_device", "public_key": "BASE64_P256_PUBLIC_KEY" }`}
+              response={`{ "ok": true, "registered": true }`}
+              notes="The SDKs call this for you. It sends only the public key of the bot's decryption key, so the bot is included in encrypted messages. Calling it again with the same key changes nothing. A new key replaces the old one."
+            />
+          </div>
+
+          <h3 className="mb-3 mt-10 text-lg font-bold text-vulo-bright">Encrypted servers</h3>
+          <div className="max-w-2xl space-y-3 text-sm text-vulo-muted">
+            <p>Some servers use end-to-end encryption, so messages are encrypted separately for each device. A bot needs a key to read them. The SDKs handle this for you:</p>
+            <ul className="list-disc space-y-2 pl-5">
+              <li>The first time your bot reads messages, the SDK creates a key pair in <code>vulo-key.json</code> (or the file named in <code>VULO_KEY_FILE</code>). It then calls <code>register_device</code> with the public key. Only the public key is sent.</li>
+              <li>Messages come back with their plain text in <code>content</code>. A message your bot cannot read has <code>content: null</code> and a <code>decrypt_error</code>.</li>
+              <li>A bot can read only messages sent after its key was registered. Keep the key file. If you delete it, the bot gets a new key, and older messages stay unreadable.</li>
+              <li>Vulo.py needs the cryptography package for encrypted servers: <code>pip install cryptography</code>. Without it, plain messages still work.</li>
+              <li>If you call the HTTP API yourself, <code>get_messages</code> returns the encrypted message content. You must decrypt it yourself, or use an SDK.</li>
+            </ul>
           </div>
 
           <h3 className="mb-3 mt-10 text-lg font-bold text-vulo-bright">Account actions (used by VuloChat)</h3>
@@ -231,6 +249,7 @@ export default function DevDocs() {
             <li>Keep your token private. Never put it in browser code, public repositories, or screenshots. Use an environment variable.</li>
             <li>If a token is exposed, open <strong>Settings → Developer</strong> and choose <strong>New token</strong>. The old token stops working immediately.</li>
             <li>Bot programs run on your computer. VuloChat never runs them and never stores their code.</li>
+            <li>The key file (vulo-key.json by default) holds your bot's decryption key. Keep it private, like the token. Anyone with that file can read what your bot can read.</li>
             <li>Poll gently. Checking every 3 to 10 seconds is plenty for these scripts.</li>
           </ul>
         </section>

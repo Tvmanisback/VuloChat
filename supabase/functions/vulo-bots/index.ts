@@ -180,6 +180,45 @@ Deno.serve(async (req) => {
     const { data: bot, error: botErr } = await admin.from("bots").select("id,profile_id,name").eq("id", tokenRow.bot_id).single();
     if (botErr || !bot) return reply({ error: "Bot not found" }, 404);
 
+    if (action === "register_device") {
+      // The SDK creates a key pair on the bot owner's computer and sends only the public key here.
+      // The private key never leaves that computer, so VuloChat cannot read messages with it.
+      const publicKey = String(body.public_key || "");
+      let bytes: Uint8Array;
+      try {
+        bytes = Uint8Array.from(atob(publicKey), (c) => c.charCodeAt(0));
+      } catch {
+        return reply({ error: "public_key must be base64" }, 400);
+      }
+      // A P-256 public key in raw form is 65 bytes, starting with 0x04.
+      if (bytes.length !== 65 || bytes[0] !== 4) return reply({ error: "public_key must be a P-256 public key" }, 400);
+      const { data: existing, error: findErr } = await admin
+        .from("e2ee_devices")
+        .select("id")
+        .eq("user_id", bot.profile_id)
+        .eq("public_key", publicKey)
+        .is("revoked_at", null)
+        .maybeSingle();
+      if (findErr) throw findErr;
+      if (existing) {
+        const { error } = await admin.from("e2ee_devices").update({ last_seen_at: new Date().toISOString() }).eq("id", existing.id);
+        if (error) throw error;
+        return reply({ ok: true, registered: false });
+      }
+      // One key per bot. A new key replaces the old one, so messages sent before are not readable by the new key.
+      const { error: revokeErr } = await admin
+        .from("e2ee_devices")
+        .update({ revoked_at: new Date().toISOString() })
+        .eq("user_id", bot.profile_id)
+        .is("revoked_at", null);
+      if (revokeErr) throw revokeErr;
+      const { error } = await admin
+        .from("e2ee_devices")
+        .insert({ user_id: bot.profile_id, device_name: `Bot: ${bot.name}`.slice(0, 120), public_key: publicKey });
+      if (error) throw error;
+      return reply({ ok: true, registered: true });
+    }
+
     if (action === "update_profile") {
       const patch: Record<string, unknown> = {};
       if (typeof body.display_name === "string") patch.display_name = body.display_name.trim().slice(0, 80);
