@@ -184,7 +184,13 @@ export interface EncryptedMessagePayload {
  */
 export async function encryptMessageForUsers(plaintext: string, userIds: string[]): Promise<string> {
   const identity = await getDeviceIdentity();
-  const uniqueIds = [...new Set(userIds)];
+  const requestedIds = [...new Set(userIds)];
+  if (!requestedIds.length) throw new Error('No E2EE recipients were supplied.');
+  // Bot accounts are server members too, but they have no device and read messages through the bot API,
+  // so they are not encryption recipients.
+  const { data: humanRows, error: humanError } = await supabase.rpc('e2ee_human_ids', { ids: requestedIds });
+  if (humanError) throw humanError;
+  const uniqueIds = (humanRows as string[] | null) ?? [];
   if (!uniqueIds.length) throw new Error('No E2EE recipients were supplied.');
   const { data, error } = await supabase
     .from('e2ee_devices')
