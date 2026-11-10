@@ -1,5 +1,6 @@
 // vulo-bots: the bot API.
-// Signed-in VuloChat users (the app) call: create, create_from_template, install, edit_profile, regenerate_token.
+// Signed-in VuloChat users (the app) call: create, install, edit_profile, regenerate_token, delete_bot.
+// Premade bots are run by VuloChat itself (premade-bots function), so they have no owner or token.
 // Local bot programs call (with x-vulo-token): send_message, get_messages, get_members, get_config, update_profile.
 // Deploy with verify_jwt off, because this function checks its own sign-in or bot token.
 import { createClient } from "npm:@supabase/supabase-js@2";
@@ -99,29 +100,8 @@ Deno.serve(async (req) => {
     }
 
     if (action === "create_from_template") {
-      const user = await signedInUser(req);
-      if (!user) return reply({ error: "Sign in required" }, 401);
-      const templateId = String(body.template_id || "");
-      const { data: template } = await admin
-        .from("bot_templates")
-        .select("id,name,description,default_settings")
-        .eq("id", templateId)
-        .eq("enabled", true)
-        .maybeSingle();
-      if (!template) return reply({ error: "Template not found" }, 404);
-      const name = String(body.name || template.name).trim().slice(0, 80);
-      const username = "vulo_bot_" + crypto.randomUUID().replaceAll("-", "").slice(0, 16);
-      const profileId = await createBotAccount(username, name, template.description);
-      const { data: bot, error: botErr } = await admin
-        .from("bots")
-        .insert({ owner_id: user.id, profile_id: profileId, name, description: template.description, is_premade: true, template_id: template.id })
-        .select("id,profile_id,name,description")
-        .single();
-      if (botErr) throw botErr;
-      const token = newToken();
-      const { error: tokenErr } = await admin.from("bot_tokens").insert({ bot_id: bot.id, token_hash: await hash(token), token_prefix: token.slice(0, 13) });
-      if (tokenErr) throw tokenErr;
-      return reply({ bot, token, settings: template.default_settings, template_id: template.id });
+      // Premade bots belong to VuloChat. Nobody gets a token for them; they are added to a server with install.
+      return reply({ error: "Premade bots are run by VuloChat. Add them to a server from Server Settings → Bots." }, 410);
     }
 
     if (action === "create") {

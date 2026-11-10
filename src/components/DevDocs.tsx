@@ -130,21 +130,18 @@ export default function DevDocs() {
         <section id="premade" className="scroll-mt-32">
           <Heading>Premade bots</Heading>
           <p className="mb-6 max-w-2xl text-vulo-muted">
-            Server owners can add these from <strong>Server Settings → Bots</strong>. Each one gets its own token. Its settings are set in
-            VuloChat, and the script reads them while it runs, so changes apply without restarting the script.
+            Server owners can add these from <strong>Server Settings → Bots</strong>. VuloChat runs them on its own servers, so they are
+            always online. They have no token and no script to download. Their settings are set in Server Settings → Bots.
           </p>
           <div className="grid gap-4 md:grid-cols-3">
             <Card title="Welcomer" meta="Community">
               <p>Greets new members in a channel. Set the welcome message. <code>{'{username}'}</code> and <code>{'{server}'}</code> are filled in.</p>
-              <ScriptLink file="welcomer.js" />
             </Card>
             <Card title="Auto-responder" meta="Utility">
               <p>Replies when a message contains a word you chose. One rule per line, like <code>hello = Hi there!</code></p>
-              <ScriptLink file="auto-responder.js" />
             </Card>
             <Card title="Announcer" meta="Community">
               <p>Posts a message on a timer. Set the message, the channel and the minutes between posts.</p>
-              <ScriptLink file="announcer.js" />
             </Card>
           </div>
         </section>
@@ -209,7 +206,6 @@ export default function DevDocs() {
           </p>
           <ul className="space-y-2 rounded bg-vulo-side p-4 text-sm">
             <li><code>create</code>: make a bot and its first token.</li>
-            <li><code>create_from_template</code>: make a premade bot and its first token.</li>
             <li><code>regenerate_token</code>: replace a bot's token. The old token stops working right away.</li>
             <li><code>install</code>: add a bot to a server. Needs Manage Server.</li>
             <li><code>edit_profile</code>: change a bot's profile as its owner.</li>
@@ -270,14 +266,6 @@ function Card({ title, meta, children }: { title: string; meta: string; children
       <h3 className="mt-1 text-lg font-bold text-vulo-bright">{title}</h3>
       <div className="mt-2 space-y-2">{children}</div>
     </article>
-  );
-}
-
-function ScriptLink({ file }: { file: string }) {
-  return (
-    <a href={`../examples/${file}`} download className="mt-4 inline-block self-start text-sm font-semibold text-vulo-accent hover:underline">
-      Download {file}
-    </a>
   );
 }
 

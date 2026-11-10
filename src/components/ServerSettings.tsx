@@ -7,7 +7,7 @@ import { useDecorations } from '../lib/decorations';
 import type { Role } from '../lib/types';
 import type { ServerData } from '../lib/useServer';
 import { Button, ErrorText, Field, inputClass } from './ui';
-import { PORTAL_URL, PREMADE_BOTS, SCRIPTS_URL, errorMessage } from '../lib/premadeBots';
+import { PORTAL_URL, PREMADE_BOTS, errorMessage } from '../lib/premadeBots';
 
 type Tab = 'overview' | 'roles' | 'emojis' | 'stickers' | 'members' | 'bots';
 
@@ -94,18 +94,20 @@ function BotsTab({ data, userId }: { data: ServerData; userId: string }) {
   const [mine, setMine] = useState<any[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [newToken, setNewToken] = useState<{ name: string; token: string } | null>(null);
+  // The premade bots VuloChat runs. Each template has one of these.
+  const [platform, setPlatform] = useState<{ id: string; template_id: string }[]>([]);
 
   const load = async () => {
-    const [t, a, m] = await Promise.all([
+    const [t, a, m, p] = await Promise.all([
       supabase.from('bot_templates').select('*').eq('enabled', true).order('name'),
       supabase
         .from('server_bots')
         .select('bot_id,enabled,settings,permissions,bots(id,name,description,profile_id,template_id)')
         .eq('server_id', serverId),
       supabase.from('bots').select('id,name,description,profile_id,template_id').eq('owner_id', userId).order('created_at'),
+      supabase.from('bots').select('id,template_id').is('owner_id', null),
     ]);
-    const failed = t.error || a.error || m.error;
+    const failed = t.error || a.error || m.error || p.error;
     if (failed) {
       setError(failed.message);
       return;
@@ -113,6 +115,7 @@ function BotsTab({ data, userId }: { data: ServerData; userId: string }) {
     setTemplates(t.data || []);
     setInstalled((a.data as any) || []);
     setMine(m.data || []);
+    setPlatform((p.data as any) || []);
   };
   useEffect(() => {
     void load();
@@ -125,16 +128,17 @@ function BotsTab({ data, userId }: { data: ServerData; userId: string }) {
     return result;
   };
 
-  // Adds a premade bot: creates it for your account, installs it here, and shows its token once.
-  // The token is what the bot script needs to run on your computer.
+  // Adds a premade bot. VuloChat runs it, so there is no token and nothing to download.
   const addPremade = async (template: any) => {
+    const bot = platform.find((p) => p.template_id === template.id);
+    if (!bot) {
+      setError('This bot is not ready yet. Try again in a moment.');
+      return;
+    }
     setBusy(true);
     setError(null);
-    setNewToken(null);
     try {
-      const created = await invoke({ action: 'create_from_template', template_id: template.id });
-      await invoke({ action: 'install', bot_id: created.bot.id, server_id: serverId });
-      setNewToken({ name: template.name, token: created.token });
+      await invoke({ action: 'install', bot_id: bot.id, server_id: serverId });
       await load();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not add the bot.');
@@ -161,20 +165,9 @@ function BotsTab({ data, userId }: { data: ServerData; userId: string }) {
   return (
     <Section title="Bots">
       <p className="mb-4 text-sm text-vulo-muted">
-        Bots run on their owner's computer. VuloChat provides the API and server membership, but never hosts the bot process.
+        Premade bots run on VuloChat's servers, so they are always online. Bots you make run on your own computer.
       </p>
       <ErrorText>{error}</ErrorText>
-
-      {newToken && (
-        <div className="mb-5 rounded border border-vulo-green/40 bg-vulo-green/10 p-4">
-          <p className="mb-2 font-semibold text-vulo-bright">Copy the token for {newToken.name} now. It is only shown once.</p>
-          <code className="block break-all select-all text-sm">{newToken.token}</code>
-          <p className="mt-2 text-xs text-vulo-muted">Keep it private. Lost tokens can be replaced from Settings → Developer.</p>
-          <Button variant="secondary" className="mt-3 py-1.5" onClick={() => setNewToken(null)}>
-            I've copied it
-          </Button>
-        </div>
-      )}
 
       <div className="mb-6 rounded bg-vulo-side p-4">
         <h3 className="mb-3 font-semibold text-vulo-bright">Premade bots</h3>
@@ -305,12 +298,7 @@ function InstalledBot({
           <Button variant="secondary" className="py-1.5" disabled={saving} onClick={() => void saveSettings()}>
             Save settings
           </Button>
-          <p className="mt-3 text-xs text-vulo-muted">
-            Run it on your computer with your bot token:{' '}
-            <a className="text-[#00a8fc] hover:underline" href={`${SCRIPTS_URL}${info.script}`} target="_blank" rel="noreferrer">
-              download {info.script}
-            </a>
-          </p>
+          <p className="mt-3 text-xs text-vulo-muted">VuloChat runs this bot, so it is always online. No token or script is needed.</p>
         </>
       )}
 
